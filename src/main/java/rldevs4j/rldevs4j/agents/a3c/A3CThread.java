@@ -2,7 +2,7 @@ package rldevs4j.rldevs4j.agents.a3c;
 
 import facade.DevsSuiteFacade;
 import java.util.logging.Logger;
-import rldevs4j.base.env.Container;
+import rldevs4j.base.env.RLEnvironment;
 
 /**
  * Thread class for run each worker training thread.
@@ -13,12 +13,12 @@ public class A3CThread extends Thread {
     private final DevsSuiteFacade facade;
     private final int workerEpisodes;
     private final double episodeTime;
-    private final Container container;
+    private final RLEnvironment container;
     private boolean running;
     private Logger logger;
     private final boolean DEBUG_MODE = false;
 
-    public A3CThread(String name, A3C a3c, int workerEpisodes, double episodeTime, Container container, Logger logger) {
+    public A3CThread(String name, A3C a3c, int workerEpisodes, double episodeTime, RLEnvironment container, Logger logger) {
         super(name);
         this.a3c = a3c;
         this.workerEpisodes = workerEpisodes;
@@ -53,7 +53,7 @@ public class A3CThread extends Thread {
             this.container.getAgent().episodeFinished();   
         }
         this.running = false;        
-        container.getAgent().clearMemory();
+        container.getAgent().clear();
     }
 
 }

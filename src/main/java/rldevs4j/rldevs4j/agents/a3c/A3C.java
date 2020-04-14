@@ -21,7 +21,7 @@ import org.deeplearning4j.util.ModelSerializer;
 import org.nd4j.linalg.primitives.Triple;
 import rldevs4j.base.agent.PersistModel;
 import rldevs4j.base.agent.preproc.Preprocessing;
-import rldevs4j.base.env.Container;
+import rldevs4j.base.env.RLEnvironment;
 import rldevs4j.base.env.Environment;
 import rldevs4j.base.env.factory.EnvironmentFactory;
 import rldevs4j.experiment.ExperimentResult;
@@ -166,7 +166,7 @@ public class A3C implements PersistModel{
                     preprocessing.clone(),
                     false,
                     logger);
-            Container container = new Container(worker, env); 
+            RLEnvironment container = new RLEnvironment(worker, env); 
             A3CThread thread = new A3CThread("worker_thread_"+i, this, episodesPerWorker, episodeMaxSimTime, container, logger);
             this.workersThreads.add(thread);
         }

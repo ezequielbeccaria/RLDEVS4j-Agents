@@ -64,7 +64,7 @@ public class A3CWorker extends AbstractWorker{
             Preprocessing preprocessing,
             boolean debug,
             Logger logger) {
-        super("worker"+id, doNothingActionId, net, preprocessing);
+        super("worker"+id, net, preprocessing);
         
         this.stepCounter = 0;
         this.stepCounterMax = stepCounterMax;
@@ -265,7 +265,7 @@ public class A3CWorker extends AbstractWorker{
     }
 
     @Override
-    public void clearMemory() {
+    public void clear() {
         cg = null;       
         Nd4j.getWorkspaceManager().destroyAllWorkspacesForCurrentThread();
     }

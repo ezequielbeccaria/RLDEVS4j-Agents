@@ -16,8 +16,8 @@ public abstract class AbstractWorker extends Agent{
     protected ComputationGraph cg;
     private final double clipEpsilon = 1;
 
-    public AbstractWorker(String name, int doNothingActionId, ComputationGraph net, Preprocessing preprocessing) {
-        super(name, doNothingActionId, preprocessing);
+    public AbstractWorker(String name, ComputationGraph net, Preprocessing preprocessing) {
+        super(name, preprocessing);
         this.cg = net;
     }
     

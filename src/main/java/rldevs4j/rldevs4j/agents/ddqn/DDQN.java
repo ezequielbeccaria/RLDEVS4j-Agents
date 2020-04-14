@@ -67,7 +67,7 @@ public class DDQN extends Agent implements PersistModel{
             Random rnd,
             Logger logger,            
             boolean debug) {        
-        super(name, policy.getActionSpace().get(0).getId(), preprocessing); //pass doNothing action ID              
+        super(name, preprocessing); //pass doNothing action ID              
         this.initialState = initialState;
         this.initialActionIdx = initialActionIdx;
         memory = new ExperienceReplayBuffer<>(memorySize, rnd);       
@@ -203,7 +203,7 @@ public class DDQN extends Agent implements PersistModel{
     }    
 
     @Override
-    public void clearMemory() {
+    public void clear() {
         memory.clear();
         vf = null;
         vfTarget = null;
