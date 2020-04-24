@@ -1,4 +1,4 @@
-package rldevs4j.rldevs4j.agents.memory;
+package rldevs4j.agents.memory;
 
 import java.util.ArrayList;
 import java.util.List;

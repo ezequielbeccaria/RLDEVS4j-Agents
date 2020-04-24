@@ -1,11 +1,9 @@
-package rldevs4j.rldevs4j.agents.memory;
+package rldevs4j.agents.memory;
 
-import java.util.ArrayList;
 import java.util.List;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
 import org.nd4j.linalg.indexing.NDArrayIndex;
-import rldevs4j.base.env.msg.Event;
 
 /**
  *
@@ -13,14 +11,15 @@ import rldevs4j.base.env.msg.Event;
  */
 public class TDTupleBatch {
     private final INDArray states;
-    private final List<Event> events;
+    private final INDArray actions;
     private final INDArray nextStates;
     private final double[] rewards;
-    private final boolean[] doneFlags;
+    private final double[] done;
 
     public TDTupleBatch(List<TDTuple> tuples) {
         int batchSize = tuples.size();  
         boolean recursive = tuples.get(0).getState().shape().length > 2;
+        int actionSize = tuples.get(0).getAction().length;
         if(recursive){
             int stateSize = (int) tuples.get(0).getState().shape()[1];
             states = Nd4j.create(batchSize, stateSize, 1);
@@ -31,9 +30,9 @@ public class TDTupleBatch {
             nextStates = Nd4j.create(batchSize, stateSize);
         }
         
-        events = new ArrayList<>(batchSize);        
+        actions = Nd4j.zeros(batchSize, actionSize);
         rewards = new double[batchSize];
-        doneFlags = new boolean[batchSize];
+        done = new double[batchSize];
         
         for(int i=0;i<batchSize;i++){
             TDTuple t = tuples.get(i);
@@ -44,9 +43,9 @@ public class TDTupleBatch {
                 states.putRow(i, t.getState());
                 nextStates.putRow(i, t.getNextState());
             }           
-            events.add(t.getAction());            
+            actions.putRow(i, Nd4j.create(t.getAction()));
             rewards[i] = t.getReward();
-            doneFlags[i] = t.isDone();
+            done[i] = t.isDone()?0D:1D;
         }
     }
 
@@ -54,8 +53,8 @@ public class TDTupleBatch {
         return states;
     }
 
-    public List<Event> getEvents() {
-        return events;
+    public INDArray getActions() {
+        return actions;
     }
 
     public INDArray getNextStates() {
@@ -66,8 +65,8 @@ public class TDTupleBatch {
         return rewards;
     }
 
-    public boolean[] getDoneFlags() {
-        return doneFlags;
+    public double[] getDone() {
+        return done;
     }
     
     

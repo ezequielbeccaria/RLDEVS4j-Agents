@@ -1,5 +1,5 @@
 
-package rldevs4j.rldevs4j.agents.dummy;
+package rldevs4j.agents.dummy;
 
 import rldevs4j.base.agent.Agent;
 import rldevs4j.base.agent.preproc.Preprocessing;
@@ -35,11 +35,6 @@ public class DummyAgent extends Agent{
     @Override
     public double getTotalReward() {
         return cumReward;
-    }
-
-    @Override
-    public void setDebugMode(boolean value) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override

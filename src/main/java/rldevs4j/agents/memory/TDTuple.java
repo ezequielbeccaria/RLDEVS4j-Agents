@@ -1,8 +1,8 @@
-package rldevs4j.rldevs4j.agents.memory;
+package rldevs4j.agents.memory;
 
 import java.io.Serializable;
+import org.math.plot.utils.Array;
 import org.nd4j.linalg.api.ndarray.INDArray;
-import rldevs4j.base.env.msg.Event;
 
 /**
  * Class that represent each execution step done by the agent (Decision epoch).
@@ -12,16 +12,16 @@ import rldevs4j.base.env.msg.Event;
  */
 public class TDTuple implements Serializable {
     private INDArray state;
-    private Event action;    
+    private double[] action;    
     private INDArray nextState;    
     private double reward;    
     private boolean done;
 
-    public TDTuple(INDArray state, Event action, INDArray nextState, double reward) {
+    public TDTuple(INDArray state, double[] action, INDArray nextState, double reward) {
         this(state, action, nextState, reward, false);
     }   
 
-    public TDTuple(INDArray state, Event action, INDArray nextState, double reward, boolean done) {
+    public TDTuple(INDArray state, double[] action, INDArray nextState, double reward, boolean done) {
         this.state = state;
         this.action = action;
         this.nextState = nextState;
@@ -37,11 +37,11 @@ public class TDTuple implements Serializable {
         this.state = state;
     }
 
-    public Event getAction() {
+    public double[] getAction() {
         return action;
     }
 
-    public void setAction(Event action) {
+    public void setAction(double[] action) {
         this.action = action;
     }
 
@@ -81,7 +81,7 @@ public class TDTuple implements Serializable {
     }
     
     public TDTuple copy(){
-        return new TDTuple(state.dup(), action.copy(), nextState.dup(), reward, done);
+        return new TDTuple(state.dup(), Array.copy(action), nextState.dup(), reward, done);
     }
 
     @Override
