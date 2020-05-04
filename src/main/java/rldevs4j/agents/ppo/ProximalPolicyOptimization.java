@@ -44,7 +44,7 @@ public class ProximalPolicyOptimization extends Agent{
             Actor actor,
             Critic critic,
             Map<String,Object> params) {
-        super(name, preprocessing);
+        super(name, preprocessing, 1D);
         
         this.actor = actor;
         this.critic = critic;

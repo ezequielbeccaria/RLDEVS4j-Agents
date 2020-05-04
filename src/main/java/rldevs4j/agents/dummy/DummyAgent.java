@@ -16,7 +16,7 @@ public class DummyAgent extends Agent{
     private double cumReward = 0D;
 
     public DummyAgent(String name, Preprocessing preprocessing) {
-        super(name, preprocessing);
+        super(name, preprocessing, 1D);
     }
 
     @Override
@@ -27,6 +27,7 @@ public class DummyAgent extends Agent{
                 100, 
                 "action", 
                 EventType.action, 
+//                new double[]{0D, 0D});
                 new double[]{0D, (step.getFeature(-1)>30D && step.getFeature(-1)>35D)?1D:0D});
         
         return action;
