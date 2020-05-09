@@ -27,8 +27,8 @@ public class DummyAgent extends Agent{
                 100, 
                 "action", 
                 EventType.action, 
-//                new double[]{0D, 0D});
-                new double[]{0D, (step.getFeature(-1)>30D && step.getFeature(-1)>35D)?1D:0D});
+                new double[]{0D, 0D});
+//                new double[]{0D, (step.getFeature(-1)>30D && step.getFeature(-1)>35D)?1D:0D});
         
         return action;
     }
@@ -41,6 +41,10 @@ public class DummyAgent extends Agent{
     @Override
     public void clear() {
         cumReward = 0D;
+    }
+
+    @Override
+    public void saveModel(String path) {        
     }
     
 }

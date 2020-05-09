@@ -1,5 +1,7 @@
 package rldevs4j.agents.ppo;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Map;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.ComputationGraphConfiguration;
@@ -20,15 +22,15 @@ import rldevs4j.agents.utils.AgentUtils;
  *
  * @author Ezequiel Beccaria
  */
-public class Actor {
+public class ContinuousActionActor {
     private final ComputationGraph model;
-    private final double LOG_STD_MIN = -2D;
-    private final double LOG_STD_MAX = 2;
+    private final double LOG_STD_MIN = -20D; // std = e^-20 = 0.000000002
+    private final double LOG_STD_MAX = 1; // std = e^1 = 2.7183
     private final double epsilonClip;
-    private final double tahnActionLimit;
+    private final double tahnActionLimit; //max sample value
     private final double entropyCoef;
     
-    public Actor(
+    public ContinuousActionActor(
             int obsDim, 
             int actionDim, 
             Double learningRate, 
@@ -60,7 +62,12 @@ public class Actor {
         this.entropyCoef = entropyCoef;
     }
     
-    public Actor(Map<String,Object> params){
+    public void saveModel(String path) throws IOException{
+        File file = new File(path+"actor_model");
+        this.model.save(file);
+    }
+    
+    public ContinuousActionActor(Map<String,Object> params){
         this((int) params.get("OBS_DIM"),
             (int) params.get("ACTION_DIM"),
             (double) params.getOrDefault("LEARNING_RATE", 1e-3),
@@ -82,8 +89,9 @@ public class Actor {
     public double[] action(INDArray obs){        
         NormalDistribution pi = distribution(obs.reshape(new int[]{1, obs.columns()}));
         INDArray sample = Transforms.tanh(pi.sample());
-        AgentUtils.clamp(sample, 0D, 1D);        
+        sample = Transforms.max(sample, 0);
         sample = sample.muli(this.tahnActionLimit);
+        sample = Transforms.round(sample);
         return sample.toDoubleVector();
     }
     

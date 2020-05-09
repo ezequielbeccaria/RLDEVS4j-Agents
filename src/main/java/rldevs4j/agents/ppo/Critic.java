@@ -87,6 +87,9 @@ public class Critic {
         int iterationCount = cgConf.getIterationCount();
         int epochCount = cgConf.getEpochCount();
         model.getUpdater().update(gradient, iterationCount, epochCount, batchSize, LayerWorkspaceMgr.noWorkspaces());
+        //Get a row vector gradient array, and apply it to the parameters to update the model
+        INDArray updateVector = gradientsClipping(gradient.gradient());
+        model.params().subi(updateVector);
         Collection<TrainingListener> iterationListeners = model.getListeners();
         if (iterationListeners != null && iterationListeners.size() > 0) {
             iterationListeners.forEach((listener) -> {                

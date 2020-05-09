@@ -1,8 +1,11 @@
 package rldevs4j.agents.ppo;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
@@ -21,7 +24,7 @@ import rldevs4j.agents.memory.TDTupleBatch;
  */
 public class ProximalPolicyOptimization extends Agent{
     private int iteration;
-    private Actor actor;
+    private ContinuousActionActor actor;
     private Critic critic; 
     private List<TDTuple> trace;
     private TDTuple currentTuple;
@@ -41,7 +44,7 @@ public class ProximalPolicyOptimization extends Agent{
     public ProximalPolicyOptimization(
             String name, 
             Preprocessing preprocessing, 
-            Actor actor,
+            ContinuousActionActor actor,
             Critic critic,
             Map<String,Object> params) {
         super(name, preprocessing, 1D);
@@ -82,8 +85,10 @@ public class ProximalPolicyOptimization extends Agent{
         
         //store current td tuple
         currentTuple = new TDTuple(state.dup(), action, null, 0);
-        if(debug) // Debuging
+        if(debug){ // Debuging
             logger.info(currentTuple.toStringMinimal());      
+            logger.log(Level.INFO, "Action: {0}", Arrays.toString(action));      
+        }    
         return new Continuous(100, "action", EventType.action, action);
     }
     
@@ -138,11 +143,22 @@ public class ProximalPolicyOptimization extends Agent{
     public double getTotalReward() {
         return cumReward;
     }
-
+    
     @Override
     public void clear() {
+        train();
         cumReward = 0D;
+        currentTuple = null;
         iteration++;
+    }
+
+    @Override
+    public void saveModel(String path) {
+        try {
+            this.actor.saveModel(path);
+        } catch (IOException ex) {
+            Logger.getLogger(ProximalPolicyOptimization.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
     
 }
