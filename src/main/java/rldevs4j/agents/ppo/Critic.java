@@ -2,6 +2,8 @@ package rldevs4j.agents.ppo;
 
 import java.util.Collection;
 import java.util.Map;
+
+import org.deeplearning4j.api.storage.StatsStorage;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.ComputationGraphConfiguration;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
@@ -12,6 +14,8 @@ import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.deeplearning4j.nn.weights.WeightInit;
 import org.deeplearning4j.nn.workspace.LayerWorkspaceMgr;
 import org.deeplearning4j.optimize.api.TrainingListener;
+import org.deeplearning4j.optimize.listeners.ScoreIterationListener;
+import org.deeplearning4j.ui.stats.StatsListener;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.indexing.BooleanIndexing;
@@ -27,7 +31,7 @@ public class Critic {
     private final ComputationGraph model;
     private final double paramClamp = 1D;
     
-    public Critic(int obsDim, Double learningRate, Double l2, int hSize){
+    public Critic(int obsDim, Double learningRate, Double l2, int hSize, StatsStorage statsStorage){
         ComputationGraphConfiguration conf = new NeuralNetConfiguration.Builder()    
             .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
             .updater(new RmsProp(learningRate))
@@ -43,13 +47,18 @@ public class Critic {
 
         model = new ComputationGraph(conf);
         model.init();
+        if(statsStorage!=null) {
+            this.model.setListeners(new ScoreIterationListener(1));
+            this.model.setListeners(new StatsListener(statsStorage));
+        }
     }
     
     public Critic(Map<String,Object> params){
         this((int) params.get("OBS_DIM"),
             (double) params.getOrDefault("LEARNING_RATE", 1e-3),
             (double) params.getOrDefault("L2", 1e-2),
-            (int) params.getOrDefault("HIDDEN_SIZE", 128));
+            (int) params.getOrDefault("HIDDEN_SIZE", 128),
+            (StatsStorage) params.getOrDefault("STATS_STORAGE", null));
     }
     
     public INDArray output(INDArray obs){

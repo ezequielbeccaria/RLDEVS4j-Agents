@@ -1,4 +1,4 @@
-package rldevs4j.agents.distribution;
+package rldevs4j.agents.utils.distribution;
 
 import java.util.Iterator;
 import org.nd4j.linalg.api.iter.NdIndexIterator;

@@ -9,14 +9,15 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
+import rldevs4j.agents.utils.scaler.StandartScaler;
 import rldevs4j.base.agent.Agent;
 import rldevs4j.base.agent.preproc.Preprocessing;
 import rldevs4j.base.env.msg.Continuous;
 import rldevs4j.base.env.msg.Event;
 import rldevs4j.base.env.msg.EventType;
 import rldevs4j.base.env.msg.Step;
-import rldevs4j.agents.memory.TDTuple;
-import rldevs4j.agents.memory.TDTupleBatch;
+import rldevs4j.agents.utils.memory.TDTuple;
+import rldevs4j.agents.utils.memory.TDTupleBatch;
 
 /**
  *
@@ -24,10 +25,11 @@ import rldevs4j.agents.memory.TDTupleBatch;
  */
 public class ProximalPolicyOptimization extends Agent{
     private int iteration;
-    private ContinuousActionActor actor;
+    private Actor actor;
     private Critic critic; 
     private List<TDTuple> trace;
     private TDTuple currentTuple;
+    private StandartScaler scaler;
     
     private double discountRate;
     private double lambdaGae;
@@ -44,13 +46,14 @@ public class ProximalPolicyOptimization extends Agent{
     public ProximalPolicyOptimization(
             String name, 
             Preprocessing preprocessing, 
-            ContinuousActionActor actor,
+            Actor actor,
             Critic critic,
             Map<String,Object> params) {
         super(name, preprocessing, 1D);
         
         this.actor = actor;
         this.critic = critic;
+        this.scaler = new StandartScaler();
         
         trace = new ArrayList<>();
         
@@ -67,7 +70,6 @@ public class ProximalPolicyOptimization extends Agent{
 
     @Override
     public Event observation(Step step) {
-        //TODO: Train when horizon is reached
         INDArray state = step.getObservation();
         double reward = step.getReward();
         //add reward to currentTuple
@@ -76,6 +78,7 @@ public class ProximalPolicyOptimization extends Agent{
         if(currentTuple!=null){
             currentTuple.addReward(reward);
             currentTuple.setNextState(state.dup()); //set next state
+            currentTuple.setDone(step.isDone());
             trace.add(currentTuple);            
             
             if(trace.size() == horizon)
@@ -93,15 +96,16 @@ public class ProximalPolicyOptimization extends Agent{
     }
     
     private double[] train(){        
-        TDTupleBatch batch = new TDTupleBatch(trace);        
+        TDTupleBatch batch = new TDTupleBatch(trace);
         //oldPi[0] -> Sample
         //oldPi[1] -> log_oldPi
         INDArray[] oldPi = actor.output(batch.getStates(), batch.getActions());
         INDArray oldValues = critic.output(batch.getStates());
         //gae[0] -> returns
         //gae[1] -> advantages
-        INDArray[] gae = gae(oldValues, batch.getRewards(), batch.getDone());
-        
+        INDArray[] gae = gae(oldValues, scaler.partialFitTransform(batch.getRewards()), batch.getDone());
+//        INDArray[] gae = gae(oldValues, batch.getRewards(), batch.getDone());
+
         double actorLoss = 0;
         double criticLoss = 0;
         for (int i = 0; i < this.epochs; i++) {
@@ -111,7 +115,7 @@ public class ProximalPolicyOptimization extends Agent{
         }
         
         trace.clear();
-        
+//        System.out.println("ActorLoss: "+actorLoss+" | CriticLoss: "+criticLoss);
         return new double[]{actorLoss, criticLoss};
     }    
 

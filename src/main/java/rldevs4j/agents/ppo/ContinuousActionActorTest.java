@@ -1,19 +1,8 @@
 package rldevs4j.agents.ppo;
 
-import org.deeplearning4j.nn.api.OptimizationAlgorithm;
-import org.deeplearning4j.nn.conf.ComputationGraphConfiguration;
-import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
-import org.deeplearning4j.nn.conf.layers.DenseLayer;
-import org.deeplearning4j.nn.gradient.Gradient;
 import org.deeplearning4j.nn.graph.ComputationGraph;
-import org.deeplearning4j.nn.weights.WeightInit;
-import org.deeplearning4j.nn.workspace.LayerWorkspaceMgr;
-import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
-import org.nd4j.linalg.learning.config.Adam;
 import org.nd4j.linalg.ops.transforms.Transforms;
-import rldevs4j.agents.distribution.NormalDistribution;
-import rldevs4j.agents.utils.AgentUtils;
 import rldevs4j.base.agent.Agent;
 import rldevs4j.base.agent.preproc.Preprocessing;
 import rldevs4j.base.env.msg.Continuous;

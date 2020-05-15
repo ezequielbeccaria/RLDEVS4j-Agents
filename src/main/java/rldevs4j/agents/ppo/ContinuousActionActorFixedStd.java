@@ -1,10 +1,5 @@
 package rldevs4j.agents.ppo;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Collection;
-import java.util.Map;
-
 import org.deeplearning4j.api.storage.StatsStorage;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.ComputationGraphConfiguration;
@@ -19,24 +14,29 @@ import org.deeplearning4j.optimize.listeners.ScoreIterationListener;
 import org.deeplearning4j.ui.stats.StatsListener;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.factory.Nd4j;
 import org.nd4j.linalg.learning.config.Adam;
 import org.nd4j.linalg.ops.transforms.Transforms;
-import rldevs4j.agents.utils.distribution.NormalDistribution;
 import rldevs4j.agents.utils.AgentUtils;
+import rldevs4j.agents.utils.distribution.NormalDistribution;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Map;
 
 /**
  *
  * @author Ezequiel Beccaria
  */
-public class ContinuousActionActor implements Actor{
+public class ContinuousActionActorFixedStd implements Actor{
     private final ComputationGraph model;
-    private final double LOG_STD_MIN = -20D; // std = e^-20 = 0.000000002
-    private final double LOG_STD_MAX = 1D; // std = e^1 = 2.7183
+    private final double LOG_STD = -0.5D; // std = e^-20 = 0.000000002
     private final double epsilonClip;
     private final double tahnActionLimit; //max sample value
     private final double entropyCoef;
-    
-    public ContinuousActionActor(
+
+    public ContinuousActionActorFixedStd(
             int obsDim,
             int actionDim,
             Double learningRate,
@@ -46,19 +46,18 @@ public class ContinuousActionActor implements Actor{
             double epsilonClip,
             double entropyCoef,
             StatsStorage statsStorage){
-        
-        ComputationGraphConfiguration conf = new NeuralNetConfiguration.Builder()    
+
+        ComputationGraphConfiguration conf = new NeuralNetConfiguration.Builder()
             .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
             .updater(new Adam(learningRate))
-            .weightInit(WeightInit.XAVIER)                
+            .weightInit(WeightInit.XAVIER)
             .l2(l2!=null?l2:0.001D)
             .graphBuilder()
             .addInputs("in")
-            .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.RELU).build(), "in")                     
-            .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.RELU).build(), "h1")            
-            .addLayer("mean", new DenseLayer.Builder().nIn(hSize).nOut(actionDim).activation(Activation.RELU).build(), "h2")            
-            .addLayer("log_std", new DenseLayer.Builder().nIn(hSize).nOut(actionDim).activation(Activation.RELU).build(), "h2")
-            .setOutputs("mean", "log_std")
+            .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.RELU).build(), "in")
+            .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.RELU).build(), "h1")
+            .addLayer("mean", new DenseLayer.Builder().nIn(hSize).nOut(actionDim).activation(Activation.RELU).build(), "h2")
+            .setOutputs("mean")
             .build();
 
         this.model = new ComputationGraph(conf);
@@ -71,13 +70,13 @@ public class ContinuousActionActor implements Actor{
         this.epsilonClip = epsilonClip;
         this.entropyCoef = entropyCoef;
     }
-    
+
     public void saveModel(String path) throws IOException{
         File file = new File(path+"actor_model");
         this.model.save(file);
     }
-    
-    public ContinuousActionActor(Map<String,Object> params){
+
+    public ContinuousActionActorFixedStd(Map<String,Object> params){
         this((int) params.get("OBS_DIM"),
             (int) params.get("ACTION_DIM"),
             (double) params.getOrDefault("LEARNING_RATE", 1e-3),
@@ -111,9 +110,7 @@ public class ContinuousActionActor implements Actor{
         INDArray[] output = model.output(obs);
         INDArray mean = output[0];
         //Clamp LogStd
-        AgentUtils.clamp(output[1], LOG_STD_MIN, LOG_STD_MAX);        
-        INDArray std = Transforms.exp(output[1]);
-        
+        INDArray std = Transforms.exp(Nd4j.ones(mean.shape()).muli(LOG_STD));
         return new NormalDistribution(mean, std);
     }
     
@@ -128,7 +125,7 @@ public class ContinuousActionActor implements Actor{
         int epochCount = cgConf.getEpochCount();
         //Update the gradient: apply learning rate, momentum, etc
         //This modifies the Gradient object in-place
-        Gradient g = model.backpropGradient(lossPerPoint, lossPerPoint);
+        Gradient g = model.backpropGradient(lossPerPoint);
         model.getUpdater().update(g, iteration, epoch, states.rows(), LayerWorkspaceMgr.noWorkspaces());
         //Get a row vector gradient array, and apply it to the parameters to update the model
         INDArray updateVector = g.gradient();

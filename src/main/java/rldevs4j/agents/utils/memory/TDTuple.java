@@ -1,4 +1,4 @@
-package rldevs4j.agents.memory;
+package rldevs4j.agents.utils.memory;
 
 import java.io.Serializable;
 import org.math.plot.utils.Array;

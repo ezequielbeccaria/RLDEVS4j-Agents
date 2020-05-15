@@ -1,6 +1,7 @@
-package rldevs4j.agents.memory;
+package rldevs4j.agents.utils.memory;
 
 import java.util.List;
+
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
 import org.nd4j.linalg.indexing.NDArrayIndex;
@@ -68,6 +69,4 @@ public class TDTupleBatch {
     public double[] getDone() {
         return done;
     }
-    
-    
 }
