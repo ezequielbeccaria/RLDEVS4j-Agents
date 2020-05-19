@@ -27,7 +27,7 @@ import org.nd4j.linalg.lossfunctions.LossFunctions;
  *
  * @author Ezequiel Beccaria
  */
-public class Critic {
+public class    Critic {
     private final ComputationGraph model;
     private final double paramClamp = 1D;
     

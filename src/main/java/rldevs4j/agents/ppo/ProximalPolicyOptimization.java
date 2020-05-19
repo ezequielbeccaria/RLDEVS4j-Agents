@@ -147,7 +147,12 @@ public class ProximalPolicyOptimization extends Agent{
     public double getTotalReward() {
         return cumReward;
     }
-    
+
+    @Override
+    public void trainingFinished() {
+
+    }
+
     @Override
     public void clear() {
         train();
@@ -164,5 +169,10 @@ public class ProximalPolicyOptimization extends Agent{
             Logger.getLogger(ProximalPolicyOptimization.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
-    
+
+    @Override
+    public void loadModel(String path) {
+
+    }
+
 }

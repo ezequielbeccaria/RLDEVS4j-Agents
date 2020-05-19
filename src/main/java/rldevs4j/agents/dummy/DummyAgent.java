@@ -48,6 +48,11 @@ public class DummyAgent extends Agent{
     }
 
     @Override
+    public void trainingFinished() {
+
+    }
+
+    @Override
     public void clear() {
         flag = true;
         cumReward = 0D;
@@ -56,5 +61,10 @@ public class DummyAgent extends Agent{
     @Override
     public void saveModel(String path) {        
     }
-    
+
+    @Override
+    public void loadModel(String path) {
+
+    }
+
 }

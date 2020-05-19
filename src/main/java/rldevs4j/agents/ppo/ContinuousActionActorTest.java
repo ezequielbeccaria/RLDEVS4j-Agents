@@ -30,16 +30,12 @@ public class ContinuousActionActorTest extends Agent {
 
     public ContinuousActionActorTest(String name, Preprocessing preprocessing, String modelPath, double tahnActionLimit) throws IOException {
         super(name, preprocessing, 1D);
-        this.model = loadModel(modelPath);
+        File file = new File(modelPath+"Env3PPOTrain_actor_model");
+        this.model = ComputationGraph.load(file, false);
         this.model.init();
 
         this.tahnActionLimit = tahnActionLimit;
         this.appliedActions = new HashMap<>();
-    }
-
-    public ComputationGraph loadModel(String path) throws IOException{
-        File file = new File(path+"Env3PPOTrain_actor_model");
-        return ComputationGraph.load(file, false);
     }
 
     public double[] action(INDArray obs){
@@ -66,6 +62,11 @@ public class ContinuousActionActorTest extends Agent {
     }
 
     @Override
+    public void trainingFinished() {
+
+    }
+
+    @Override
     public void clear() {
         cumReward = 0D;
         appliedActions.clear();
@@ -73,6 +74,11 @@ public class ContinuousActionActorTest extends Agent {
 
     @Override
     public void saveModel(String path) {
+
+    }
+
+    @Override
+    public void loadModel(String path) {
 
     }
 

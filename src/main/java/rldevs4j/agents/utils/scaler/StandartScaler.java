@@ -51,7 +51,7 @@ public class StandartScaler {
     public double[] transform(double[] v){
         double[] scaled = new double[v.length];
         for(int i=0;i<v.length;i++){
-            scaled[i]=(v[i]-mean)/Math.sqrt(s/n);
+            scaled[i]=s!=0D?(v[i]-mean)/Math.sqrt(s/n):(v[i]-mean);
         }
         return scaled;
     }
@@ -74,6 +74,11 @@ public class StandartScaler {
     public double[] partialFitTransform(double[] v){
         partialFit(v);
         return transform(v);
+    }
+
+    public double partialFitTransform(double v){
+        partialFit(new double[]{v});
+        return transform(new double[]{v})[0];
     }
 
     public double getMean() {

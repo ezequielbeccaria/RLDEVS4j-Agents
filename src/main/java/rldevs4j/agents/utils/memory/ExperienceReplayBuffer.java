@@ -28,7 +28,7 @@ public class ExperienceReplayBuffer<E> {
      * @param e
      * @return idx
      */
-    public int add(E e){
+    public synchronized int add(E e){
         if(next_idx>=memory.size()){
             memory.add(e);
         }else{
@@ -40,7 +40,7 @@ public class ExperienceReplayBuffer<E> {
         return insertIdx;
     }
     
-    public List<E> sample(int batchSize){
+    public synchronized List<E> sample(int batchSize){
         //Select samples from memory with uniform distribution
         List<E> samples = new ArrayList<>();
         for(int i=0;i<Math.min(memory.size(), batchSize);i++){
