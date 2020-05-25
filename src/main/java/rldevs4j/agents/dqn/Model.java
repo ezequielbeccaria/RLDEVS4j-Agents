@@ -110,7 +110,7 @@ public class Model {
 
     public int action(INDArray obs){
         INDArray qsa = model.output(obs.reshape(new int[]{1, obs.columns()}))[0];
-        Categorical dist = new Categorical(qsa);
+        Categorical dist = new Categorical(null, qsa);
         return dist.sample().getInt(0);
     }
 
