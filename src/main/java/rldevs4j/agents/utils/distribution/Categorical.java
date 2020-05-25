@@ -3,6 +3,7 @@ package rldevs4j.agents.utils.distribution;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
 import org.nd4j.linalg.indexing.BooleanIndexing;
+import org.nd4j.linalg.indexing.NDArrayIndex;
 import org.nd4j.linalg.indexing.conditions.Conditions;
 import org.nd4j.linalg.ops.transforms.Transforms;
 import rldevs4j.agents.utils.AgentUtils;
@@ -13,6 +14,7 @@ import rldevs4j.agents.utils.AgentUtils;
 public class Categorical implements Distribution{
     private INDArray probs;
     private INDArray logits;
+    private final float eps = 1.1920928955078125e-07f;
 
     public Categorical(INDArray probs) {
         this(probs, null);
@@ -21,15 +23,17 @@ public class Categorical implements Distribution{
     public Categorical(INDArray probs, INDArray logits) {
         if((probs == null) && (logits == null))
             throw new RuntimeException("Either `probs` or `logits` must be specified, but not both.");
-        this.probs = probs;
-        this.logits = logits;
         if(probs != null){
             if(probs.shape().length < 1)
                 throw new RuntimeException("`probs` parameter must be at least one-dimensional.");
-            this.probs = probs.div(probs.sum(-1));
+            if(probs.rank()==1)
+                probs = probs.reshape(1, -1);
+            this.probs = clampProbs(probs);
         }else{
             if(logits.shape().length < 1)
                 throw new RuntimeException("`logits` parameter must be at least one-dimensional.");
+            if(logits.rank()==1)
+                logits = logits.reshape(1, -1);
             this.logits = logits.sub(AgentUtils.logSumExp(logits));
         }
     }
@@ -40,25 +44,41 @@ public class Categorical implements Distribution{
             probs = Transforms.softmax(logits);
         }
         INDArray cumProbs = probs.cumsum(-1);
-        double rndProb = Nd4j.getRandom().nextDouble();
-        return BooleanIndexing.firstIndex(cumProbs, Conditions.greaterThan(rndProb));
+        long[][] sample = new long[probs.rows()][1];
+        for(int i=0;i<probs.rows();i++){
+            double rndProb = Nd4j.getRandom().nextDouble();
+            int idx = BooleanIndexing.firstIndex(cumProbs.getRow(i), Conditions.greaterThan(rndProb)).getInt(0);
+            sample[i][0] = idx;
+        }
+        return Nd4j.create(sample);
     }
 
     @Override
     public INDArray logProb(INDArray sample) {
-        if(logits==null)
+        if(sample.rank()==1)
+            sample = sample.reshape(-1, 1);
+        if(logits==null){
             logits = Transforms.log(probs);
-        return logits.getScalar(sample.getInt(0));
+        }
+        double[][] output = new double[probs.rows()][1];
+        for(int i=0;i<probs.rows();i++){
+            int idx = sample.getInt(i, 0);
+            output[i][0] = logits.getDouble(i, idx);
+        }
+        return Nd4j.create(output);
     }
 
     @Override
     public INDArray entropy() {
         if(logits==null) {
-            float eps = 1.1920928955078125e-07f;
-            INDArray clampProbs = probs.dup();
-            AgentUtils.clamp(clampProbs, eps, 1-eps);
-            logits = Transforms.log(clampProbs);
+            logits = Transforms.log(probs);
         }
         return logits.mul(probs).sum(-1).muli(-1);
+    }
+
+    private INDArray clampProbs(INDArray p){
+        INDArray clampProbs = p.dup();
+        AgentUtils.clamp(clampProbs, eps, 1-eps);
+        return clampProbs;
     }
 }
