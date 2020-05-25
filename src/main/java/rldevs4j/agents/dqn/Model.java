@@ -25,6 +25,7 @@ import org.nd4j.linalg.indexing.conditions.Conditions;
 import org.nd4j.linalg.learning.config.RmsProp;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 import org.nd4j.linalg.ops.transforms.Transforms;
+import rldevs4j.agents.utils.distribution.Categorical;
 import rldevs4j.agents.utils.memory.ExperienceReplayBuffer;
 import rldevs4j.agents.utils.memory.TDTuple;
 import rldevs4j.agents.utils.memory.TDTupleBatch;
@@ -109,14 +110,8 @@ public class Model {
 
     public int action(INDArray obs){
         INDArray qsa = model.output(obs.reshape(new int[]{1, obs.columns()}))[0];
-        INDArray qsaTau = Transforms.exp(qsa.muli(tau));
-        Number qsaSum = qsaTau.sumNumber();
-        INDArray qProb = qsaTau.div(qsaSum);
-        INDArray cumsum = qProb.cumsum(0);
-
-        double rndProb = rnd.nextDouble();
-        int idx = BooleanIndexing.firstIndex(cumsum, Conditions.greaterThan(rndProb)).getInt(0);
-        return idx;
+        Categorical dist = new Categorical(qsa);
+        return dist.sample().getInt(0);
     }
 
     private INDArray gradientsClipping(INDArray output){
