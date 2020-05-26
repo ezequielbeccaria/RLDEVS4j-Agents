@@ -1,14 +1,9 @@
 package rldevs4j.agents.ppo;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
+import rldevs4j.agents.utils.memory.TDTuple;
+import rldevs4j.agents.utils.memory.TDTupleBatch;
 import rldevs4j.agents.utils.scaler.StandartScaler;
 import rldevs4j.base.agent.Agent;
 import rldevs4j.base.agent.preproc.Preprocessing;
@@ -16,8 +11,14 @@ import rldevs4j.base.env.msg.Continuous;
 import rldevs4j.base.env.msg.Event;
 import rldevs4j.base.env.msg.EventType;
 import rldevs4j.base.env.msg.Step;
-import rldevs4j.agents.utils.memory.TDTuple;
-import rldevs4j.agents.utils.memory.TDTupleBatch;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -25,8 +26,9 @@ import rldevs4j.agents.utils.memory.TDTupleBatch;
  */
 public class ProximalPolicyOptimization extends Agent{
     private int iteration;
-    private Actor actor;
-    private Critic critic; 
+    private int actionSize;
+    private PPOActor actor;
+    private PPOCritic PPOCritic;
     private List<TDTuple> trace;
     private TDTuple currentTuple;
     private StandartScaler scaler;
@@ -45,18 +47,18 @@ public class ProximalPolicyOptimization extends Agent{
 
     public ProximalPolicyOptimization(
             String name, 
-            Preprocessing preprocessing, 
-            Actor actor,
-            Critic critic,
+            Preprocessing preprocessing,
+            PPOActor actor,
+            PPOCritic PPOCritic,
             Map<String,Object> params) {
         super(name, preprocessing, 1D);
         
         this.actor = actor;
-        this.critic = critic;
+        this.PPOCritic = PPOCritic;
         this.scaler = new StandartScaler();
         
         trace = new ArrayList<>();
-        
+        actionSize = (int) params.get("ACTION_DIM");
         discountRate = (double) params.getOrDefault("DISCOUNT_RATE", 0.99D);
         lambdaGae = (double) params.getOrDefault("LAMBDA_GAE", 0.96D);
         targetKl = (double) params.getOrDefault("TARGET_KL", 0.02D);
@@ -72,7 +74,6 @@ public class ProximalPolicyOptimization extends Agent{
     public Event observation(Step step) {
         INDArray state = step.getObservation();
         double reward = step.getReward();
-        //add reward to currentTuple
         cumReward+= reward;
         //compute new policy               
         if(currentTuple!=null){
@@ -96,11 +97,11 @@ public class ProximalPolicyOptimization extends Agent{
     }
     
     private double[] train(){        
-        TDTupleBatch batch = new TDTupleBatch(trace);
+        TDTupleBatch batch = new TDTupleBatch(trace, false);
         //oldPi[0] -> Sample
         //oldPi[1] -> log_oldPi
         INDArray[] oldPi = actor.output(batch.getStates(), batch.getActions());
-        INDArray oldValues = critic.output(batch.getStates());
+        INDArray oldValues = PPOCritic.output(batch.getStates());
         //gae[0] -> returns
         //gae[1] -> advantages
         INDArray[] gae = gae(oldValues, scaler.partialFitTransform(batch.getRewards()), batch.getDone());
@@ -110,7 +111,7 @@ public class ProximalPolicyOptimization extends Agent{
         double criticLoss = 0;
         for (int i = 0; i < this.epochs; i++) {
             actorLoss = actor.train(batch.getStates(), batch.getActions(), gae[1], oldPi[1], iteration, epochs);
-            criticLoss = critic.train(batch.getStates(), gae[0]);
+            criticLoss = PPOCritic.train(batch.getStates(), gae[0]);
             //TODO: evaluate KL divergese for early stopping
         }
         

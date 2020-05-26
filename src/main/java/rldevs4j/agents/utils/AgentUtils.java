@@ -18,9 +18,8 @@ public class AgentUtils {
 
     public static INDArray logSumExp(INDArray a) {
         INDArray aMax = a.max(-1);
-        INDArray logSumExp = aMax.add(Transforms.log(Transforms.exp(a.sub(aMax)).sum(-1)));
-        for (int i = 0; i < aMax.rows(); i++)
-            BooleanIndexing.replaceWhere(logSumExp.getRow(i), aMax.getRow(i), Conditions.isNan());
+        INDArray logSumExp = Transforms.log(Transforms.exp(a.sub(aMax)).sum(-1)).add(aMax);
+        BooleanIndexing.replaceWhere(logSumExp, aMax, Conditions.isNan());
         return logSumExp;
     }
 }

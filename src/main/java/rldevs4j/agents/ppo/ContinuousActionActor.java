@@ -21,15 +21,15 @@ import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.learning.config.Adam;
 import org.nd4j.linalg.ops.transforms.Transforms;
-import rldevs4j.agents.utils.distribution.NormalDistribution;
+import rldevs4j.agents.utils.distribution.Normal;
 import rldevs4j.agents.utils.AgentUtils;
 
 /**
  *
  * @author Ezequiel Beccaria
  */
-public class ContinuousActionActor implements Actor{
-    private final ComputationGraph model;
+public class ContinuousActionActor implements PPOActor{
+    private ComputationGraph model;
     private final double LOG_STD_MIN = -20D; // std = e^-20 = 0.000000002
     private final double LOG_STD_MAX = 1D; // std = e^1 = 2.7183
     private final double epsilonClip;
@@ -76,7 +76,12 @@ public class ContinuousActionActor implements Actor{
         File file = new File(path+"actor_model");
         this.model.save(file);
     }
-    
+
+    public void loadModel(String path) throws IOException {
+        File file = new File(path+"actor_model");
+        this.model = ComputationGraph.load(file, true);
+    }
+
     public ContinuousActionActor(Map<String,Object> params){
         this((int) params.get("OBS_DIM"),
             (int) params.get("ACTION_DIM"),
@@ -90,7 +95,7 @@ public class ContinuousActionActor implements Actor{
     }
     
     public INDArray[] output(INDArray obs, INDArray act){                
-        NormalDistribution pi = distribution(obs);
+        Normal pi = distribution(obs);
         INDArray sample = pi.sample();
         INDArray logPi = pi.logProb(sample);        
         INDArray entropy = pi.entropy();
@@ -98,7 +103,7 @@ public class ContinuousActionActor implements Actor{
     }
     
     public double[] action(INDArray obs){
-        NormalDistribution pi = distribution(obs.reshape(new int[]{1, obs.columns()}));
+        Normal pi = distribution(obs.reshape(new int[]{1, obs.columns()}));
         INDArray sample = pi.sample();
         INDArray tanhSample = Transforms.tanh(sample);
 //        sample = Transforms.max(sample, 0);
@@ -106,15 +111,15 @@ public class ContinuousActionActor implements Actor{
 //        sample = Transforms.round(sample);
         return tanhSample.toDoubleVector();
     }
-    
-    private NormalDistribution distribution(INDArray obs){
+
+    private Normal distribution(INDArray obs){
         INDArray[] output = model.output(obs);
         INDArray mean = output[0];
         //Clamp LogStd
         AgentUtils.clamp(output[1], LOG_STD_MIN, LOG_STD_MAX);        
         INDArray std = Transforms.exp(output[1]);
         
-        return new NormalDistribution(mean, std);
+        return new Normal(mean, std);
     }
     
     public double train(INDArray states, INDArray actions, INDArray advantages, INDArray logOldPi, int iteration, int epoch){

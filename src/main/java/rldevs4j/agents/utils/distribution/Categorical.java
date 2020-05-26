@@ -46,7 +46,7 @@ public class Categorical implements Distribution{
         INDArray cumProbs = probs.cumsum(-1);
         long[][] sample = new long[probs.rows()][1];
         for(int i=0;i<probs.rows();i++){
-            double rndProb = Nd4j.getRandom().nextDouble();
+            float rndProb = Nd4j.getRandom().nextFloat();
             int idx = BooleanIndexing.firstIndex(cumProbs.getRow(i), Conditions.greaterThan(rndProb)).getInt(0);
             sample[i][0] = idx;
         }
@@ -60,10 +60,10 @@ public class Categorical implements Distribution{
         if(logits==null){
             logits = Transforms.log(probs);
         }
-        double[][] output = new double[probs.rows()][1];
+        float[][] output = new float[probs.rows()][1];
         for(int i=0;i<probs.rows();i++){
             int idx = sample.getInt(i, 0);
-            output[i][0] = logits.getDouble(i, idx);
+            output[i][0] = logits.getFloat(i, idx);
         }
         return Nd4j.create(output);
     }

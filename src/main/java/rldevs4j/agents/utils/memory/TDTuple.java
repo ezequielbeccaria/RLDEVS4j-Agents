@@ -10,18 +10,18 @@ import org.nd4j.linalg.api.ndarray.INDArray;
  * @author Ezequiel Beccaría
  * @date 25/07/2017  
  */
-public class TDTuple implements Serializable {
+public class TDTuple<E> implements Serializable {
     private INDArray state;
-    private double[] action;    
+    private E action;
     private INDArray nextState;    
     private double reward;    
     private boolean done;
 
-    public TDTuple(INDArray state, double[] action, INDArray nextState, double reward) {
+    public TDTuple(INDArray state, E action, INDArray nextState, double reward) {
         this(state, action, nextState, reward, false);
     }   
 
-    public TDTuple(INDArray state, double[] action, INDArray nextState, double reward, boolean done) {
+    public TDTuple(INDArray state, E action, INDArray nextState, double reward, boolean done) {
         this.state = state;
         this.action = action;
         this.nextState = nextState;
@@ -37,11 +37,11 @@ public class TDTuple implements Serializable {
         this.state = state;
     }
 
-    public double[] getAction() {
+    public E getAction() {
         return action;
     }
 
-    public void setAction(double[] action) {
+    public void setAction(E action) {
         this.action = action;
     }
 
@@ -81,7 +81,7 @@ public class TDTuple implements Serializable {
     }
     
     public TDTuple copy(){
-        return new TDTuple(state.dup(), Array.copy(action), nextState.dup(), reward, done);
+        return new TDTuple(state.dup(), action, nextState.dup(), reward, done);
     }
 
     @Override

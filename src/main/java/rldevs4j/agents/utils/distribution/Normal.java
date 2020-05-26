@@ -11,16 +11,16 @@ import org.nd4j.linalg.ops.transforms.Transforms;
  *
  * @author Ezequiel Beccaria
  */
-public class NormalDistribution {
+public class Normal implements Distribution{
     private final INDArray mean;
     private final INDArray std;
 
-    public NormalDistribution(double[] mean, double[] std) {
+    public Normal(double[] mean, double[] std) {
         this.mean = Nd4j.create(mean);
         this.std = Nd4j.create(std);
     }
     
-    public NormalDistribution(INDArray mean, INDArray std) {
+    public Normal(INDArray mean, INDArray std) {
         this.mean = mean;
         this.std = std;
     }
@@ -51,4 +51,6 @@ public class NormalDistribution {
         //Taken from pytorch.Normal.entropy
         return Transforms.log(std).add(0.5 + 0.5 * Math.log(2 * Math.PI));
     }
+
+
 }

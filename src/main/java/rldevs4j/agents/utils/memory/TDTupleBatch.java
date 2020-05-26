@@ -17,34 +17,23 @@ public class TDTupleBatch {
     private final double[] rewards;
     private final double[] done;
 
-    public TDTupleBatch(List<TDTuple> tuples) {
-        int batchSize = tuples.size();  
-        boolean recursive = tuples.get(0).getState().shape().length > 2;
-        int actionSize = tuples.get(0).getAction().length;
-        if(recursive){
-            int stateSize = (int) tuples.get(0).getState().shape()[1];
-            states = Nd4j.create(batchSize, stateSize, 1);
-            nextStates = Nd4j.create(batchSize, stateSize, 1);
-        }else{
-            int stateSize = tuples.get(0).getState().columns();
-            states = Nd4j.create(batchSize, stateSize);
-            nextStates = Nd4j.create(batchSize, stateSize);
-        }
-        
-        actions = Nd4j.zeros(batchSize, actionSize);
+    public TDTupleBatch(List<TDTuple> tuples, boolean discrete) {
+        int batchSize = tuples.size();
+        int stateSize = tuples.get(0).getState().columns();
+        states = Nd4j.create(batchSize, stateSize);
+        nextStates = Nd4j.create(batchSize, stateSize);
+
+        actions = Nd4j.zeros(batchSize, discrete?1:((double[])tuples.get(0).getAction()).length);
         rewards = new double[batchSize];
         done = new double[batchSize];
         
         for(int i=0;i<batchSize;i++){
             TDTuple t = tuples.get(i);
-            if(recursive){
-                states.get(NDArrayIndex.point(i), NDArrayIndex.all(), NDArrayIndex.point(0)).assign(t.getState());
-                nextStates.get(NDArrayIndex.point(i), NDArrayIndex.all(), NDArrayIndex.point(0)).assign(t.getNextState());
-            }else{
-                states.putRow(i, t.getState());
-                nextStates.putRow(i, t.getNextState());
-            }           
-            actions.putRow(i, Nd4j.create(t.getAction()));
+
+            states.putRow(i, t.getState());
+            nextStates.putRow(i, t.getNextState());
+
+            actions.putRow(i, t.getAction() instanceof Integer?Nd4j.create(new double[]{(int)t.getAction()}):Nd4j.create((double[])t.getAction()));
             rewards[i] = t.getReward();
             done[i] = t.isDone()?0D:1D;
         }
