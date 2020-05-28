@@ -104,6 +104,10 @@ public class A3CWorker extends Agent {
         Gradient gCritic = critic.gradient(batch.getStates(), gae[0]);
 
         global.enqueueGradient(new Gradient[]{gCritic, gActor}, trace.size());
+        INDArray[] globalParams = global.getNetsParams();
+
+        actor.setParams(globalParams[0]);
+        critic.setParams(globalParams[1]);
 
         trace.clear();
         return new double[]{0};

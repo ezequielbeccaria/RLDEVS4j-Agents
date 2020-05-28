@@ -91,7 +91,7 @@ public class FFDiscreteActor implements DiscreteACActor {
         INDArray logProb = Transforms.log(output[1]);
         INDArray lossPerPoint = logProb.mulColumnVector(advantages);
         lossPerPoint.muli(-1D);
-        lossPerPoint.addiColumnVector(output[2].mul(entropyFactor));
+        lossPerPoint.addiColumnVector(output[3].mul(entropyFactor));
         //Extra info
         return lossPerPoint;
     }
