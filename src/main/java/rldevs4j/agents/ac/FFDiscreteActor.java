@@ -28,13 +28,15 @@ public class FFDiscreteActor implements DiscreteACActor {
     private ComputationGraph model;
     private Random rnd;
 
-    public FFDiscreteActor(ComputationGraph model){
+    public FFDiscreteActor(ComputationGraph model, double entropyFactor){
         this.rnd = Nd4j.getRandom();
         this.model = model;
         this.model.init();
+
+        this.entropyFactor = entropyFactor;
     }
 
-    public FFDiscreteActor(int obsDim, int actionDim, Double learningRate, Double l2, double entropyFactor, int hSize, double[][] actionSpace) {
+    public FFDiscreteActor(int obsDim, int actionDim, Double learningRate, Double l2, double entropyFactor, int hSize) {
         this.rnd = Nd4j.getRandom();
         ComputationGraphConfiguration conf = new NeuralNetConfiguration.Builder()
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
@@ -90,8 +92,7 @@ public class FFDiscreteActor implements DiscreteACActor {
         INDArray[] output = this.output(states, actions);
         INDArray logProb = Transforms.log(output[1]);
         INDArray lossPerPoint = logProb.mulColumnVector(advantages);
-        lossPerPoint.muli(-1D);
-        lossPerPoint.addiColumnVector(output[3].mul(entropyFactor));
+        lossPerPoint.addiColumnVector(output[3].mul(entropyFactor)).negi();
         //Extra info
         return lossPerPoint;
     }
@@ -133,6 +134,6 @@ public class FFDiscreteActor implements DiscreteACActor {
 
     @Override
     public ACActor clone() {
-        return new FFDiscreteActor(model.clone());
+        return new FFDiscreteActor(model.clone(), entropyFactor);
     }
 }

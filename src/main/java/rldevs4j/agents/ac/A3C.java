@@ -33,7 +33,7 @@ public class A3C {
     private final EnvironmentFactory envFactory;
     private DiscreteACActor actor;
     private ACCritic critic;
-    private double[][] actionSpace;
+    private float[][] actionSpace;
     private final ConcurrentLinkedQueue<Triple<Gradient[],Integer, ComputationGraph>> queue; //gradients-batchsize
     private final List<A3CThread> workersThreads;
     private final double discountFactor;
@@ -65,7 +65,7 @@ public class A3C {
         this.queue = new ConcurrentLinkedQueue();
         this.episodesPerWorker = (int) params.getOrDefault("EPISODES_WORKER", 10);
         this.episodeMaxSimTime = (double) params.getOrDefault("SIMULATION_TIME", 3000);
-        this.actionSpace = (double[][]) params.get("ACTION_SPACE");
+        this.actionSpace = (float[][]) params.get("ACTION_SPACE");
         this.debug = (boolean) params.getOrDefault("DEBUG", false);
         this.logger = Logger.getGlobal();
     }

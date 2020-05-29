@@ -27,7 +27,7 @@ public class A3CWorker extends Agent {
     private DiscreteACActor actor;
     private ACCritic critic;
     private StandartScaler scaler;
-    private double[][] actionSpace;
+    private float[][] actionSpace;
 
     private final int horizon;
     private final A3C global;
@@ -47,7 +47,7 @@ public class A3CWorker extends Agent {
             double discountFactor,
             int horizon,
             Preprocessing preprocessing,
-            double[][] actionSpace) {
+            float[][] actionSpace) {
         super("worker"+id, preprocessing, 1D);
         this.actor = actor;
         this.critic = critic;
@@ -93,7 +93,7 @@ public class A3CWorker extends Agent {
     }
 
     private double[] train(){
-        TDTupleBatch batch = new TDTupleBatch(trace, true);
+        TDTupleBatch batch = new TDTupleBatch(trace, false);
 
         INDArray oldValues = critic.output(batch.getStates());
         //gae[0] -> returns
