@@ -29,11 +29,14 @@ import java.util.logging.Logger;
  * @author Ezequiel Beccaría
  */
 public class PPO {
+
     private final EnvironmentFactory envFactory;
+    private int modelBackupInterval = 1000;
+    private String workingPath;
     private DiscretePPOActor actor;
     private PPOCritic critic;
     private float[][] actionSpace;
-    private final ConcurrentLinkedQueue<Triple<Gradient[],Integer, ComputationGraph>> queue; //gradients-batchsize
+    private final ConcurrentLinkedQueue<Triple<Gradient[],Integer, ComputationGraph[]>> queue; //gradients-batchsize
     private final List<PPOThread> workersThreads;
     private final float discountFactor;
     private final float lambdaGae;
@@ -62,6 +65,7 @@ public class PPO {
         this.workersThreads = new ArrayList<>();
         this.envFactory = envFactory;
         this.preprocessing = preprocessing;
+        this.workingPath = (String) params.getOrDefault("RESULTS_FILE_PATH", "./");
         this.discountFactor = (float) params.getOrDefault("DISCOUNT_RATE", 0.99D);
         this.lambdaGae = (float) params.getOrDefault("LAMBDA_GAE", 0.96D);
         this.horizon = (int) params.getOrDefault("HORIZON", 100);
@@ -76,8 +80,8 @@ public class PPO {
     }
     
 //    public synchronized void enqueueGradient(Gradient[] gradient, int steps, ComputationGraph c){
-    public synchronized void enqueueGradient(Gradient[] gradient, int steps){
-        queue.add(new Triple<>(gradient, steps, null));
+    public synchronized void enqueueGradient(Gradient[] gradient, int steps, ComputationGraph[] workerModels){
+        queue.add(new Triple<>(gradient, steps, workerModels));
     }
 
     /**
@@ -85,11 +89,11 @@ public class PPO {
      * @param gradient
      * @param batchSize
      */
-    private void applyGradient(Gradient[] gradient, int batchSize) {
+    private void applyGradient(Gradient[] gradient, int batchSize, ComputationGraph[] workerModels) {
         //Critic
-        critic.applyGradient(gradient[0], batchSize);
+        critic.applyGradient(gradient[0], batchSize, workerModels[0]);
         //Actor
-        actor.applyGradient(gradient[1], batchSize);
+        actor.applyGradient(gradient[1], batchSize, workerModels[1]);
     }
     
     /**
@@ -100,8 +104,15 @@ public class PPO {
      */
     public synchronized void saveStatistics(String thread, int episode, double episodeReward, long episodeTime){
         results.addResult(episodeReward, episodeTime);        
-        if(episode%1==0 && this.debug)
-            logger.log(Level.INFO, "{0} episode {1} terminated. Reward: {2}. Avg-Reward: {3}", new Object[]{thread, episode, episodeReward, results.getLastAverageReward()});   
+        if(episode%10==0 && this.debug)
+            logger.log(Level.INFO, "{0} episode {1} terminated. Reward: {2}. Avg-Reward: {3}", new Object[]{thread, episode, episodeReward, results.getLastAverageReward()});
+        if(episode%modelBackupInterval==0 && this.debug) {
+            try {
+                this.saveModel(workingPath);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
     
     /**
@@ -155,9 +166,10 @@ public class PPO {
                     // While loop for queued gradient updates
                     while (!isTrainingComplete()) {
                         if (!queue.isEmpty()) {
-                            Triple<Gradient[], Integer, ComputationGraph> triple = queue.poll();
+                            Triple<Gradient[], Integer, ComputationGraph[]> triple = queue.poll();
                             Gradient[] gradient = triple.getFirst();
-                            applyGradient(gradient, triple.getSecond());
+                            ComputationGraph[] workerModels = triple.getThird();
+                            applyGradient(gradient, triple.getSecond(), workerModels);
                         }
                     }
                 }

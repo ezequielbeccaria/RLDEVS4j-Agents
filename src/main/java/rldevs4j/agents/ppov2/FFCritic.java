@@ -1,5 +1,6 @@
 package rldevs4j.agents.ppov2;
 
+import org.deeplearning4j.api.storage.StatsStorage;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.ComputationGraphConfiguration;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
@@ -10,6 +11,7 @@ import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.deeplearning4j.nn.weights.WeightInit;
 import org.deeplearning4j.nn.workspace.LayerWorkspaceMgr;
 import org.deeplearning4j.optimize.api.TrainingListener;
+import org.deeplearning4j.ui.stats.StatsListener;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
@@ -34,7 +36,7 @@ public class FFCritic implements PPOCritic {
         this.model.init();
     }
 
-    public FFCritic(int obsDim, Double learningRate, Double l2, float epsilonClip, int hSize){
+    public FFCritic(int obsDim, Double learningRate, Double l2, float epsilonClip, int hSize, StatsStorage statsStorage){
         ComputationGraphConfiguration conf = new NeuralNetConfiguration.Builder()
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .updater(new RmsProp(learningRate))
@@ -49,7 +51,9 @@ public class FFCritic implements PPOCritic {
                 .build();
         model = new ComputationGraph(conf);
         model.init();
-
+        if(statsStorage!=null) {
+            this.model.setListeners(new StatsListener(statsStorage));
+        }
         this.epsilonClip = epsilonClip;
     }
 
@@ -85,7 +89,7 @@ public class FFCritic implements PPOCritic {
         INDArray lossPerPoint = loss(states, oldValues, returns);
         model.feedForward(new INDArray[]{states}, true, false);
         Gradient g = model.backpropGradient(lossPerPoint);
-        model.params().subi(gradientsClipping(g.gradient()));
+        model.setScore(lossPerPoint.meanNumber().doubleValue());
         return g;
     }
 
@@ -102,7 +106,7 @@ public class FFCritic implements PPOCritic {
      * @param batchSize
      */
     @Override
-    public void applyGradient(Gradient gradient, int batchSize) {
+    public void applyGradient(Gradient gradient, int batchSize, ComputationGraph model) {
         ComputationGraphConfiguration cgConf = model.getConfiguration();
         int iterationCount = cgConf.getIterationCount();
         int epochCount = cgConf.getEpochCount();
@@ -127,6 +131,11 @@ public class FFCritic implements PPOCritic {
     @Override
     public void setParams(INDArray p) {
         model.setParams(p);
+    }
+
+    @Override
+    public ComputationGraph getModel() {
+        return model;
     }
 
     @Override

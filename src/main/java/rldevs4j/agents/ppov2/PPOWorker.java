@@ -1,6 +1,7 @@
 package rldevs4j.agents.ppov2;
 
 import org.deeplearning4j.nn.gradient.Gradient;
+import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.factory.Nd4j;
 import rldevs4j.agents.utils.memory.TDTuple;
@@ -117,7 +118,10 @@ public class PPOWorker extends Agent {
                 System.out.println(String.format("Early stopping at epoch %d due to reaching max kl: %f", i, actor.getCurrentApproxKL()));
                 break;
             }
-            global.enqueueGradient(new Gradient[]{gCritic, gActor}, trace.size());
+            global.enqueueGradient(
+                    new Gradient[]{gCritic, gActor},
+                    trace.size(),
+                    new ComputationGraph[]{critic.getModel(), actor.getModel()});
         }
 
 
