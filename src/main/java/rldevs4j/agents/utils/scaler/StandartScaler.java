@@ -10,11 +10,19 @@ public class StandartScaler {
     private double mean;
     private double s;
     private double n;
+    private boolean useMean;
+    private boolean useStd;
 
     public StandartScaler() {
+        this(true, true);
+    }
+
+    public StandartScaler(boolean useMean, boolean useStd) {
         mean = 0D;
         s = 0D;
         n = 0;
+        this.useMean = useMean;
+        this.useStd = useStd;
     }
 
     /**
@@ -50,8 +58,10 @@ public class StandartScaler {
      */
     public double[] transform(double[] v){
         double[] scaled = new double[v.length];
+        double cm = useMean?mean:0;
+        double cs = useStd?s:0;
         for(int i=0;i<v.length;i++){
-            scaled[i]=s!=0D?(v[i]-mean)/Math.sqrt(s/n):(v[i]-mean);
+            scaled[i]= cs!=0D? (v[i]-cm)/Math.sqrt(cs/n) : (v[i]-cm);
         }
         return scaled;
     }

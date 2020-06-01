@@ -102,14 +102,14 @@ public class ContinuousActionActor implements PPOActor{
         return new INDArray[]{sample, logPi, entropy};
     }
     
-    public double[] action(INDArray obs){
+    public float[] action(INDArray obs){
         Normal pi = distribution(obs.reshape(new int[]{1, obs.columns()}));
         INDArray sample = pi.sample();
         INDArray tanhSample = Transforms.tanh(sample);
 //        sample = Transforms.max(sample, 0);
         tanhSample = tanhSample.muli(this.tahnActionLimit);
 //        sample = Transforms.round(sample);
-        return tanhSample.toDoubleVector();
+        return tanhSample.toFloatVector();
     }
 
     private Normal distribution(INDArray obs){

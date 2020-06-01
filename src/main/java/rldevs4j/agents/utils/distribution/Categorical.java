@@ -14,7 +14,7 @@ import rldevs4j.agents.utils.AgentUtils;
 public class Categorical implements Distribution{
     private INDArray probs;
     private INDArray logits;
-    private final float eps = 1.1920928955078125e-07f;
+    private final double eps = Nd4j.EPS_THRESHOLD;
 
     public Categorical(INDArray probs) {
         this(probs, null);

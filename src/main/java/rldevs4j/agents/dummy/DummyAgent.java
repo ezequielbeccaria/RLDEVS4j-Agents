@@ -29,8 +29,8 @@ public class DummyAgent extends Agent{
     public Event observation(Step step) {
         cumReward += step.getReward();
 
-        double[] a = new double[actionSize];
-        Arrays.fill(a, 0D);
+        float[] a = new float[actionSize];
+        Arrays.fill(a, 0F);
 //        if(step.getFeature(-1) == 0D)
 //            a = new double[]{0D, 500D};
 //        if(step.getFeature(2)<1000 && flag){

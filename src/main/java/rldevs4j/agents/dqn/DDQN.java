@@ -33,7 +33,7 @@ public class DDQN extends Agent {
     private Model model;
     private final ExperienceReplayBuffer<TDTuple> memory;
     private final int batchSize;
-    private double[][] actionSpace;
+    private float[][] actionSpace;
     private Random rnd;
 
     private boolean debug;
@@ -49,7 +49,7 @@ public class DDQN extends Agent {
 
         rnd = Nd4j.getRandom();
         memory = new ExperienceReplayBuffer<>((int) params.getOrDefault("MEMORY_SIZE", 10000), rnd);
-        this.actionSpace = (double[][]) params.get("ACTION_SPACE");
+        this.actionSpace = (float[][]) params.get("ACTION_SPACE");
         this.model = model;
         this.batchSize = (int) params.getOrDefault("BATCH_SIZE", 64);
         debug = (boolean) params.getOrDefault("DEBUG", false);

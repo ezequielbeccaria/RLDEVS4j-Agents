@@ -24,7 +24,7 @@ public class ContinuousActionActorTest extends Agent {
     private final double LOG_STD_MIN = -20D; // std = e^-20 = 0.000000002
     private final double LOG_STD_MAX = 1; // std = e^1 = 2.7183
     private double tahnActionLimit; //max sample value
-    protected Map<Double, double[]> appliedActions;
+    protected Map<Double, float[]> appliedActions;
     private double cumReward;
 
 
@@ -38,20 +38,20 @@ public class ContinuousActionActorTest extends Agent {
         this.appliedActions = new HashMap<>();
     }
 
-    public double[] action(INDArray obs){
+    public float[] action(INDArray obs){
         INDArray[] output = model.output(obs.reshape(new int[]{1, obs.columns()}));
         INDArray mean = output[0];
         INDArray sample = Transforms.tanh(mean);
         sample = Transforms.max(sample, 0);
         sample = sample.muli(this.tahnActionLimit);
         sample = Transforms.round(sample);
-        return sample.toDoubleVector();
+        return sample.toFloatVector();
     }
 
     @Override
     public Event observation(Step step) {
         cumReward += step.getReward();
-        double[] action = action(step.getObservation());
+        float[] action = action(step.getObservation());
         appliedActions.put(step.getFeature(-1), action);
         return new Continuous(100, "action", EventType.action, action);
     }
@@ -82,7 +82,7 @@ public class ContinuousActionActorTest extends Agent {
 
     }
 
-    public Map<Double, double[]> getAppliedActions() {
+    public Map<Double, float[]> getAppliedActions() {
         return appliedActions;
     }
 }

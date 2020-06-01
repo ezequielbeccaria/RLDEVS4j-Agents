@@ -3,6 +3,7 @@ package rldevs4j.agents.utils.memory;
 import java.util.List;
 
 import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.cpu.nativecpu.NDArray;
 import org.nd4j.linalg.factory.Nd4j;
 import org.nd4j.linalg.indexing.NDArrayIndex;
 
@@ -23,7 +24,17 @@ public class TDTupleBatch {
         states = Nd4j.create(batchSize, stateSize);
         nextStates = Nd4j.create(batchSize, stateSize);
 
-        actions = Nd4j.zeros(batchSize, discrete?1:((double[])tuples.get(0).getAction()).length);
+        long actDim = 0;
+        if(tuples.get(0).getAction() instanceof NDArray){
+            INDArray a = (INDArray) tuples.get(0).getAction();
+            actDim = a.length();
+        } else if (tuples.get(0).getAction() instanceof Float[]){
+            Float[] a = (Float[]) tuples.get(0).getAction();
+            actDim = a.length;
+        } else {
+            actDim = 1;
+        }
+        actions = Nd4j.zeros(batchSize, actDim);
         rewards = new double[batchSize];
         done = new double[batchSize];
         
@@ -33,7 +44,15 @@ public class TDTupleBatch {
             states.putRow(i, t.getState());
             nextStates.putRow(i, t.getNextState());
 
-            actions.putRow(i, t.getAction() instanceof Integer?Nd4j.create(new double[]{(int)t.getAction()}):Nd4j.create((double[])t.getAction()));
+            INDArray a = null;
+            if(t.getAction() instanceof NDArray){
+                a = (INDArray) t.getAction();
+            } else if (t.getAction() instanceof Float[]){
+                a = Nd4j.create((float[])t.getAction());
+            } else {
+                a = Nd4j.create(new float[]{(int)t.getAction()});
+            }
+            actions.putRow(i, a);
             rewards[i] = t.getReward();
             done[i] = t.isDone()?0D:1D;
         }

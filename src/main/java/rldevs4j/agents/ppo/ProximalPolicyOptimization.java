@@ -85,7 +85,7 @@ public class ProximalPolicyOptimization extends Agent{
             if(trace.size() == horizon)
                 train();
         }    
-        double[] action = actor.action(state);
+        float[] action = actor.action(state);
         
         //store current td tuple
         currentTuple = new TDTuple(state.dup(), action, null, 0);

@@ -95,7 +95,7 @@ public class A3C {
      */
     public synchronized void saveStatistics(String thread, int episode, double episodeReward, long episodeTime){
         results.addResult(episodeReward, episodeTime);        
-        if(episode%1==0 && this.debug)
+        if(episode%5==0 && this.debug)
             logger.log(Level.INFO, "{0} episode {1} terminated. Reward: {2}. Avg-Reward: {3}", new Object[]{thread, episode, episodeReward, results.getLastAverageReward()});   
     }
     
@@ -141,6 +141,7 @@ public class A3C {
         ExecutorService es = Executors.newCachedThreadPool();
         for(int i=0;i<workers;i++)
             es.execute(workersThreads.get(i));
+
         es.execute(new Runnable() {
                 @Override
                 public void run() {

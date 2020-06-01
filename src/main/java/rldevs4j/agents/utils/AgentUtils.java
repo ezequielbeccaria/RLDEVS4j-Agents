@@ -11,9 +11,10 @@ import org.nd4j.linalg.ops.transforms.Transforms;
  */
 public class AgentUtils {
     
-    public static void clamp(INDArray input, double min, double max){
+    public static INDArray clamp(INDArray input, double min, double max){
         BooleanIndexing.replaceWhere(input, min, Conditions.lessThan(min));
         BooleanIndexing.replaceWhere(input, max, Conditions.greaterThan(max));
+        return input;
     }
 
     public static INDArray logSumExp(INDArray a) {

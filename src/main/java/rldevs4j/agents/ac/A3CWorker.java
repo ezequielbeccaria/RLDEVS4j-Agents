@@ -51,7 +51,7 @@ public class A3CWorker extends Agent {
         super("worker"+id, preprocessing, 1D);
         this.actor = actor;
         this.critic = critic;
-        this.scaler = new StandartScaler();
+        this.scaler = new StandartScaler(false, true);
         this.horizon = horizon;
         this.discountFactor = discountFactor;
         this.global = global;
