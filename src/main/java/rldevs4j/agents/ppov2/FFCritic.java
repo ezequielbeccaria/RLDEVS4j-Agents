@@ -59,13 +59,13 @@ public class FFCritic implements PPOCritic {
 
     @Override
     public void saveModel(String path) throws IOException {
-        File file = new File(path+"critic_model");
+        File file = new File(path+"FFCritic_model");
         this.model.save(file);
     }
 
     @Override
     public void loadModel(String path) throws IOException {
-        File file = new File(path+"critic_model");
+        File file = new File(path+"FFCritic_model");
         this.model = ComputationGraph.load(file, true);
     }
 

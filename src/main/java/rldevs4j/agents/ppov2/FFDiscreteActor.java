@@ -33,6 +33,12 @@ public class FFDiscreteActor implements DiscretePPOActor {
     private Random rnd;
     private float currentApproxKL;
 
+    public FFDiscreteActor(String modelPath) throws IOException {
+        this.rnd = Nd4j.getRandom();
+        this.loadModel(modelPath);
+        this.model.init();
+    }
+
     public FFDiscreteActor(ComputationGraph model, float entropyFactor, float epsilonClip){
         this.rnd = Nd4j.getRandom();
         this.model = model;
@@ -68,13 +74,13 @@ public class FFDiscreteActor implements DiscretePPOActor {
 
     @Override
     public void saveModel(String path) throws IOException {
-        File file = new File(path+"actor_model");
+        File file = new File(path+"FFDiscreteActor_model");
         this.model.save(file);
     }
 
     @Override
     public void loadModel(String path) throws IOException {
-        File file = new File(path+"actor_model");
+        File file = new File(path+"FFDiscreteActor_model");
         this.model = ComputationGraph.load(file, true);
     }
 
@@ -92,9 +98,14 @@ public class FFDiscreteActor implements DiscretePPOActor {
     @Override
     public int action(INDArray obs) {
         INDArray prob = this.model.output(obs.reshape(new int[]{1, obs.columns()}))[0];
-        INDArray cumsum = prob.cumsum(0);
-        double rndProb = rnd.nextDouble();
-        int idx = BooleanIndexing.firstIndex(cumsum, Conditions.greaterThanOrEqual(rndProb)).getInt(0);
+        Categorical dist = new Categorical(prob, null);
+        return dist.sample().getInt(0);
+    }
+
+    @Override
+    public int actionMax(INDArray obs) {
+        INDArray prob = this.model.output(obs.reshape(new int[]{1, obs.columns()}))[0];
+        int idx = prob.argMax(1).getInt(0);
         return idx;
     }
 
