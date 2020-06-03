@@ -4,8 +4,9 @@ import org.deeplearning4j.api.storage.StatsStorage;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.ComputationGraphConfiguration;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
+import org.deeplearning4j.nn.conf.graph.rnn.LastTimeStepVertex;
 import org.deeplearning4j.nn.conf.layers.DenseLayer;
-import org.deeplearning4j.nn.conf.layers.OutputLayer;
+import org.deeplearning4j.nn.conf.layers.LSTM;
 import org.deeplearning4j.nn.gradient.Gradient;
 import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.deeplearning4j.nn.weights.WeightInit;
@@ -14,12 +15,10 @@ import org.deeplearning4j.optimize.api.TrainingListener;
 import org.deeplearning4j.ui.stats.StatsListener;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
-import org.nd4j.linalg.factory.Nd4j;
 import org.nd4j.linalg.indexing.BooleanIndexing;
 import org.nd4j.linalg.indexing.conditions.Conditions;
 import org.nd4j.linalg.learning.config.Adam;
 import org.nd4j.linalg.learning.config.RmsProp;
-import org.nd4j.linalg.lossfunctions.LossFunctions;
 import org.nd4j.linalg.ops.transforms.Transforms;
 import rldevs4j.agents.utils.AgentUtils;
 
@@ -27,17 +26,17 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 
-public class FFCritic implements PPOCritic {
+public class LSTMCritic implements PPOCritic {
     private ComputationGraph model;
     private final double paramClamp = 0.5D;
     private float epsilonClip;
 
-    public FFCritic(ComputationGraph model){
+    public LSTMCritic(ComputationGraph model){
         this.model = model;
         this.model.init();
     }
 
-    public FFCritic(int obsDim, Double learningRate, Double l2, float epsilonClip, int hSize, StatsStorage statsStorage){
+    public LSTMCritic(int obsDim, Double learningRate, Double l2, float epsilonClip, int hSize, StatsStorage statsStorage){
         ComputationGraphConfiguration conf = new NeuralNetConfiguration.Builder()
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .updater(new Adam(learningRate))
@@ -45,9 +44,10 @@ public class FFCritic implements PPOCritic {
                 .l2(l2!=null?l2:0.001D)
                 .graphBuilder()
                 .addInputs("in")
-                .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
-                .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.TANH).build(), "h1")
-                .addLayer("value", new DenseLayer.Builder().activation(Activation.IDENTITY).nIn(hSize).nOut(1).build(), "h2")
+                .addLayer("lstm1", new LSTM.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
+                .addLayer("lstm2", new LSTM.Builder().nIn(hSize).nOut(hSize).activation(Activation.TANH).build(), "lstm1")
+                .addVertex("lastStep", new LastTimeStepVertex("in"), "lstm2")
+                .addLayer("value", new DenseLayer.Builder().activation(Activation.IDENTITY).nIn(hSize).nOut(1).build(), "lastStep")
                 .setOutputs("value")
                 .build();
         model = new ComputationGraph(conf);
@@ -60,19 +60,19 @@ public class FFCritic implements PPOCritic {
 
     @Override
     public void saveModel(String path) throws IOException {
-        File file = new File(path+"FFCritic_model");
+        File file = new File(path+"LSTMCritic_model");
         this.model.save(file);
     }
 
     @Override
     public void loadModel(String path) throws IOException {
-        File file = new File(path+"FFCritic_model");
+        File file = new File(path+"LSTMCritic_model");
         this.model = ComputationGraph.load(file, true);
     }
 
     @Override
     public INDArray output(INDArray obs) {
-        return model.output(obs)[0];
+        return model.output(obs.reshape(new int[]{obs.rows(), obs.columns(), 1}))[0];
     }
 
     public INDArray loss(INDArray states, INDArray oldValues, INDArray returns){
@@ -87,10 +87,13 @@ public class FFCritic implements PPOCritic {
 
     @Override
     public Gradient gradient(INDArray states, INDArray oldValues, INDArray returns) {
-        INDArray lossPerPoint = loss(states, oldValues, returns);
-        model.feedForward(new INDArray[]{states}, true, false);
+        model.rnnClearPreviousState();
+        INDArray reshapedState = states.reshape(new int[]{states.rows(), states.columns(), 1});
+        INDArray lossPerPoint = loss(reshapedState, oldValues, returns);
+        model.feedForward(new INDArray[]{reshapedState}, true, false);
         Gradient g = model.backpropGradient(lossPerPoint);
         model.setScore(lossPerPoint.meanNumber().doubleValue());
+        model.rnnClearPreviousState();
         return g;
     }
 
@@ -141,6 +144,6 @@ public class FFCritic implements PPOCritic {
 
     @Override
     public PPOCritic clone() {
-        return new FFCritic(model.clone());
+        return new LSTMCritic(model.clone());
     }
 }
