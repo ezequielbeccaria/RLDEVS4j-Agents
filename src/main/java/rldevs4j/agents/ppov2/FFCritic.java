@@ -3,6 +3,7 @@ package rldevs4j.agents.ppov2;
 import org.deeplearning4j.api.storage.StatsStorage;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.ComputationGraphConfiguration;
+import org.deeplearning4j.nn.conf.GradientNormalization;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
 import org.deeplearning4j.nn.conf.layers.DenseLayer;
 import org.deeplearning4j.nn.conf.layers.OutputLayer;
@@ -29,7 +30,7 @@ import java.util.Collection;
 
 public class FFCritic implements PPOCritic {
     private ComputationGraph model;
-    private final double paramClamp = 0.5D;
+    private final double paramClamp = 1D;
     private float epsilonClip;
 
     public FFCritic(ComputationGraph model){
@@ -42,12 +43,13 @@ public class FFCritic implements PPOCritic {
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .updater(new Adam(learningRate))
                 .weightInit(WeightInit.XAVIER)
-                .l2(l2!=null?l2:0.001D)
+                .gradientNormalization(GradientNormalization.ClipL2PerParamType)
+                .gradientNormalizationThreshold(0.5)
                 .graphBuilder()
                 .addInputs("in")
                 .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
                 .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.TANH).build(), "h1")
-                .addLayer("value", new DenseLayer.Builder().activation(Activation.IDENTITY).nIn(hSize).nOut(1).build(), "h2")
+                .addLayer("value", new DenseLayer.Builder().nIn(hSize).nOut(1).activation(Activation.IDENTITY).build(), "h2")
                 .setOutputs("value")
                 .build();
         model = new ComputationGraph(conf);
@@ -113,8 +115,8 @@ public class FFCritic implements PPOCritic {
         int epochCount = cgConf.getEpochCount();
         model.getUpdater().update(gradient, iterationCount, epochCount, batchSize, LayerWorkspaceMgr.noWorkspaces());
         //Get a row vector gradient array, and apply it to the parameters to update the model
-        INDArray updateVector = gradientsClipping(gradient.gradient());
-        model.params().subi(updateVector);
+//        INDArray updateVector = gradientsClipping(gradient.gradient());
+//        model.params().subi(updateVector);
         Collection<TrainingListener> iterationListeners = model.getListeners();
         if (iterationListeners != null && iterationListeners.size() > 0) {
             iterationListeners.forEach((listener) -> {

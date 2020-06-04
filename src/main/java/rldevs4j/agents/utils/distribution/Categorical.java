@@ -60,12 +60,13 @@ public class Categorical implements Distribution{
         if(logits==null){
             logits = Transforms.log(probs);
         }
-        float[][] output = new float[probs.rows()][1];
-        for(int i=0;i<probs.rows();i++){
-            int idx = sample.getInt(i, 0);
-            output[i][0] = logits.getFloat(i, idx);
-        }
-        return Nd4j.create(output);
+//        float[][] output = new float[probs.rows()][1];
+//        for(int i=0;i<probs.rows();i++){
+//            int idx = sample.getInt(i, 0);
+//            output[i][0] = logits.getFloat(i, idx);
+//        }
+//        return Nd4j.create(output);
+        return logits.mul(sample);
     }
 
     @Override

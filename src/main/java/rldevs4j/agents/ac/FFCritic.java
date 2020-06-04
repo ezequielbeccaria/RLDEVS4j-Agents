@@ -2,6 +2,7 @@ package rldevs4j.agents.ac;
 
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.ComputationGraphConfiguration;
+import org.deeplearning4j.nn.conf.GradientNormalization;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
 import org.deeplearning4j.nn.conf.layers.DenseLayer;
 import org.deeplearning4j.nn.conf.layers.OutputLayer;
@@ -21,6 +22,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 
+
 public class FFCritic implements ACCritic {
     private ComputationGraph model;
     private final double paramClamp = 1D;
@@ -35,7 +37,8 @@ public class FFCritic implements ACCritic {
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .updater(new RmsProp(learningRate))
                 .weightInit(WeightInit.XAVIER)
-                .l2(l2!=null?l2:0.001D)
+                .gradientNormalization(GradientNormalization.ClipL2PerParamType)
+                .gradientNormalizationThreshold(0.5)
                 .graphBuilder()
                 .addInputs("in")
                 .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.RELU).build(), "in")
@@ -90,8 +93,8 @@ public class FFCritic implements ACCritic {
         int epochCount = cgConf.getEpochCount();
         model.getUpdater().update(gradient, iterationCount, epochCount, batchSize, LayerWorkspaceMgr.noWorkspaces());
         //Get a row vector gradient array, and apply it to the parameters to update the model
-        INDArray updateVector = gradientsClipping(gradient.gradient());
-        model.params().subi(updateVector);
+//        INDArray updateVector = gradientsClipping(gradient.gradient());
+//        model.params().subi(updateVector);
         Collection<TrainingListener> iterationListeners = model.getListeners();
         if (iterationListeners != null && iterationListeners.size() > 0) {
             iterationListeners.forEach((listener) -> {

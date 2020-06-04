@@ -3,6 +3,7 @@ package rldevs4j.agents.ppov2;
 import org.deeplearning4j.api.storage.StatsStorage;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.ComputationGraphConfiguration;
+import org.deeplearning4j.nn.conf.GradientNormalization;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
 import org.deeplearning4j.nn.conf.graph.ReshapeVertex;
 import org.deeplearning4j.nn.conf.graph.rnn.LastTimeStepVertex;
@@ -18,6 +19,8 @@ import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.api.rng.Random;
 import org.nd4j.linalg.factory.Nd4j;
+import org.nd4j.linalg.indexing.BooleanIndexing;
+import org.nd4j.linalg.indexing.conditions.Conditions;
 import org.nd4j.linalg.learning.config.Adam;
 import org.nd4j.linalg.ops.transforms.Transforms;
 import rldevs4j.agents.utils.AgentUtils;
@@ -28,6 +31,7 @@ import java.io.IOException;
 import java.util.Collection;
 
 public class LSTMDiscreteActor implements DiscretePPOActor {
+    private final double paramClamp = 1D;
     private float entropyFactor;
     private float epsilonClip;
     private ComputationGraph model;
@@ -55,13 +59,14 @@ public class LSTMDiscreteActor implements DiscretePPOActor {
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .updater(new Adam(learningRate))
                 .weightInit(WeightInit.XAVIER)
-                .l2(l2!=null?l2:0.001D)
+                .gradientNormalization(GradientNormalization.ClipL2PerParamType)
+                .gradientNormalizationThreshold(0.5)
                 .graphBuilder()
                 .addInputs("in")
                 .addLayer("lstm1", new LSTM.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
                 .addLayer("lstm2", new LSTM.Builder().nIn(hSize).nOut(hSize).activation(Activation.TANH).build(), "lstm1")
                 .addVertex("lastStep", new LastTimeStepVertex("in"), "lstm2")
-                .addLayer("policy",new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.SOFTMAX).nIn(hSize).nOut(actionDim).build(), "lastStep")
+                .addLayer("policy",new DenseLayer.Builder().nIn(hSize).nOut(actionDim).activation(Activation.SOFTMAX).build(), "lastStep")
                 .setOutputs("policy")
                 .build();
 
@@ -113,11 +118,12 @@ public class LSTMDiscreteActor implements DiscretePPOActor {
     private INDArray loss(INDArray states , INDArray actions, INDArray advantages, INDArray logProbOld){
         //output[0] -> sample, output[1] -> probs, output[2] -> logProb, output[3] -> entropy
         INDArray[] output = this.output(states, actions);
-        INDArray ratio = Transforms.exp(output[1].sub(logProbOld));
+        INDArray ratio = Transforms.exp(Transforms.log(output[1]).sub(logProbOld));
         INDArray clipAdv = ratio.dup();
         AgentUtils.clamp(clipAdv, 1D-epsilonClip, 1D+epsilonClip);
         clipAdv.muliColumnVector(advantages);
-        INDArray lossPerPoint = Transforms.min(ratio.mulColumnVector(advantages), clipAdv).addiColumnVector(output[3].mul(this.entropyFactor)).negi();
+        INDArray lossPerPoint = Transforms.min(ratio.mulColumnVector(advantages), clipAdv);
+        lossPerPoint.addiColumnVector(output[3].mul(this.entropyFactor)).negi();
         //Extra info
         currentApproxKL = (logProbOld.sub(output[2])).mean().getFloat(0);
         return lossPerPoint;
@@ -141,7 +147,8 @@ public class LSTMDiscreteActor implements DiscretePPOActor {
         int epochCount = cgConf.getEpochCount();
         model.getUpdater().update(gradient, iterationCount, epochCount, batchSize, LayerWorkspaceMgr.noWorkspaces());
         //Get a row vector gradient array, and apply it to the parameters to update the model
-        model.params().subi(gradient.gradient());
+//        INDArray updateVector = gradientsClipping(gradient.gradient());
+//        model.params().subi(updateVector);
         Collection<TrainingListener> iterationListeners = model.getListeners();
         if (iterationListeners != null && iterationListeners.size() > 0) {
             iterationListeners.forEach((listener) -> {
@@ -149,6 +156,13 @@ public class LSTMDiscreteActor implements DiscretePPOActor {
             });
         }
         cgConf.setIterationCount(iterationCount + 1);
+    }
+
+    private INDArray gradientsClipping(INDArray output){
+        INDArray clipped = output.dup();
+        BooleanIndexing.replaceWhere(clipped, paramClamp, Conditions.greaterThan(paramClamp));
+        BooleanIndexing.replaceWhere(clipped, -paramClamp, Conditions.lessThan(-paramClamp));
+        return clipped;
     }
 
     @Override

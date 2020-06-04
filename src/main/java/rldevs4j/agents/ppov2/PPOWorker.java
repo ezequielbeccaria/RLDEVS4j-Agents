@@ -3,6 +3,7 @@ package rldevs4j.agents.ppov2;
 import org.deeplearning4j.nn.gradient.Gradient;
 import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.cpu.nativecpu.NDArray;
 import org.nd4j.linalg.factory.Nd4j;
 import rldevs4j.agents.utils.memory.TDTuple;
 import rldevs4j.agents.utils.memory.TDTupleBatch;
@@ -87,9 +88,11 @@ public class PPOWorker extends Agent {
                 train();
         }
         int action = actor.action(state);
+        INDArray onehotAction = Nd4j.zeros(actionSpace.length);
+        onehotAction.putScalar(action, 1D);
 
         //store current td tuple
-        currentTuple = new TDTuple(state.dup(), action, null, 0);
+        currentTuple = new TDTuple(state.dup(), onehotAction, null, 0);
         if(debug){ // Debuging
             logger.info(currentTuple.toStringMinimal());
             logger.log(Level.INFO, "Action: {0}", Arrays.toString(actionSpace[action]));

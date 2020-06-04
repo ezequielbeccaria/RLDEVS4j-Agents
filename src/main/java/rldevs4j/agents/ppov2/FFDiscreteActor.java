@@ -3,6 +3,7 @@ package rldevs4j.agents.ppov2;
 import org.deeplearning4j.api.storage.StatsStorage;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.ComputationGraphConfiguration;
+import org.deeplearning4j.nn.conf.GradientNormalization;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
 import org.deeplearning4j.nn.conf.layers.DenseLayer;
 import org.deeplearning4j.nn.gradient.Gradient;
@@ -27,6 +28,7 @@ import java.io.IOException;
 import java.util.Collection;
 
 public class FFDiscreteActor implements DiscretePPOActor {
+    private final double paramClamp = 1D;
     private float entropyFactor;
     private float epsilonClip;
     private ComputationGraph model;
@@ -54,12 +56,13 @@ public class FFDiscreteActor implements DiscretePPOActor {
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .updater(new Adam(learningRate))
                 .weightInit(WeightInit.XAVIER)
-                .l2(l2!=null?l2:0.001D)
+                .gradientNormalization(GradientNormalization.ClipL2PerParamType)
+                .gradientNormalizationThreshold(0.5)
                 .graphBuilder()
                 .addInputs("in")
                 .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
                 .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.TANH).build(), "h1")
-                .addLayer("policy",new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.SOFTMAX).nIn(hSize).nOut(actionDim).build(), "h2")
+                .addLayer("policy",new DenseLayer.Builder().nIn(hSize).nOut(actionDim).activation(Activation.SOFTMAX).build(), "h2")
                 .setOutputs("policy")
                 .build();
 
@@ -138,7 +141,8 @@ public class FFDiscreteActor implements DiscretePPOActor {
         int epochCount = cgConf.getEpochCount();
         model.getUpdater().update(gradient, iterationCount, epochCount, batchSize, LayerWorkspaceMgr.noWorkspaces());
         //Get a row vector gradient array, and apply it to the parameters to update the model
-        model.params().subi(gradient.gradient());
+//        INDArray updateVector = gradientsClipping(gradient.gradient());
+//        model.params().subi(updateVector);
         Collection<TrainingListener> iterationListeners = model.getListeners();
         if (iterationListeners != null && iterationListeners.size() > 0) {
             iterationListeners.forEach((listener) -> {
@@ -146,6 +150,13 @@ public class FFDiscreteActor implements DiscretePPOActor {
             });
         }
         cgConf.setIterationCount(iterationCount + 1);
+    }
+
+    private INDArray gradientsClipping(INDArray output){
+        INDArray clipped = output.dup();
+        BooleanIndexing.replaceWhere(clipped, paramClamp, Conditions.greaterThan(paramClamp));
+        BooleanIndexing.replaceWhere(clipped, -paramClamp, Conditions.lessThan(-paramClamp));
+        return clipped;
     }
 
     @Override
