@@ -3,37 +3,31 @@ package rldevs4j.agents.dqn;
 import org.deeplearning4j.api.storage.StatsStorage;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.ComputationGraphConfiguration;
-import org.deeplearning4j.nn.conf.MultiLayerConfiguration;
+import org.deeplearning4j.nn.conf.GradientNormalization;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
 import org.deeplearning4j.nn.conf.layers.DenseLayer;
-import org.deeplearning4j.nn.conf.layers.OutputLayer;
+import org.deeplearning4j.nn.conf.stepfunctions.NegativeGradientStepFunction;
+import org.deeplearning4j.nn.conf.stepfunctions.StepFunction;
 import org.deeplearning4j.nn.gradient.Gradient;
 import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.deeplearning4j.nn.weights.WeightInit;
 import org.deeplearning4j.nn.workspace.LayerWorkspaceMgr;
 import org.deeplearning4j.optimize.api.TrainingListener;
-import org.deeplearning4j.optimize.listeners.PerformanceListener;
-import org.deeplearning4j.optimize.listeners.ScoreIterationListener;
 import org.deeplearning4j.ui.stats.StatsListener;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
-import org.nd4j.linalg.api.ops.impl.indexaccum.IMax;
-import org.nd4j.linalg.api.rng.Random;
 import org.nd4j.linalg.factory.Nd4j;
-import org.nd4j.linalg.indexing.BooleanIndexing;
-import org.nd4j.linalg.indexing.conditions.Conditions;
-import org.nd4j.linalg.learning.config.RmsProp;
-import org.nd4j.linalg.lossfunctions.LossFunctions;
+import org.nd4j.linalg.indexing.NDArrayIndex;
+import org.nd4j.linalg.learning.config.Adam;
 import org.nd4j.linalg.ops.transforms.Transforms;
 import rldevs4j.agents.utils.distribution.Categorical;
-import rldevs4j.agents.utils.memory.ExperienceReplayBuffer;
 import rldevs4j.agents.utils.memory.TDTuple;
 import rldevs4j.agents.utils.memory.TDTupleBatch;
 import rldevs4j.agents.utils.scaler.StandartScaler;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -46,11 +40,7 @@ public class Model {
     private StandartScaler scaler;
     private ComputationGraph model;
     private ComputationGraph target;
-    private final double paramClamp = 1D;
     private final double discountFactor;
-    private final boolean clipReward;
-    private final double tau;
-    private final Random rnd;
     private final int c;
     private int j;
 
@@ -58,8 +48,7 @@ public class Model {
             int obsDim,
             int outputDim,
             Double learningRate,
-            Double l2,
-            Double discountFactor,
+            double discountFactor,
             boolean clipReward,
             int targetUpdate,
             int hSize,
@@ -67,14 +56,15 @@ public class Model {
 
         ComputationGraphConfiguration conf = new NeuralNetConfiguration.Builder()
             .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
-            .updater(new RmsProp(learningRate))
+            .updater(new Adam(learningRate))
             .weightInit(WeightInit.XAVIER)
-            .l2(l2!=null?l2:0.001D)
+            .gradientNormalization(GradientNormalization.ClipL2PerParamType)
+            .gradientNormalizationThreshold(0.5)
             .graphBuilder()
             .addInputs("in")
             .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.RELU).build(), "in")
             .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.RELU).build(), "h1")
-            .addLayer("value", new OutputLayer.Builder(LossFunctions.LossFunction.MSE).activation(Activation.IDENTITY).nIn(hSize).nOut(outputDim).build(), "h2")
+            .addLayer("value", new DenseLayer.Builder().nIn(hSize).nOut(outputDim).activation(Activation.IDENTITY).build(), "h2")
             .setOutputs("value")
             .build();
 
@@ -83,15 +73,12 @@ public class Model {
         if(statsStorage!=null) {
             this.model.setListeners(new StatsListener(statsStorage));
         }
-//        this.model.setListeners(new ScoreIterationListener(1));
+//        this.model.setListeners(new ScoreIterationListener(10));
 //        this.model.setListeners(new PerformanceListener(1));
 
         this.target = model.clone();
-        this.scaler = new StandartScaler();
+        this.scaler = new StandartScaler(false, false);
         this.discountFactor = discountFactor;
-        this.clipReward = clipReward;
-        this.tau = 1D;
-        this.rnd = Nd4j.getRandom();
         this.c = targetUpdate;
         this.j = 0;
     }
@@ -100,12 +87,15 @@ public class Model {
         this((int) params.get("OBS_DIM"),
             (int) params.get("OUTPUT_DIM"),
             (double) params.getOrDefault("LEARNING_RATE", 1e-3),
-            (double) params.getOrDefault("L2", 1e-2),
             (double) params.getOrDefault("DISCOUNT_FACTOR", 1e-3),
             (boolean) params.getOrDefault("CLIP_REWARD", false),
             (int) params.getOrDefault("TARGET_UPDATE", 50),
             (int) params.getOrDefault("HIDDEN_SIZE", 128),
             (StatsStorage) params.getOrDefault("STATS_STORAGE", null));
+    }
+
+    public INDArray test(INDArray obs){
+        return model.output(obs.reshape(new int[]{1, obs.columns()}))[0];
     }
 
     public int action(INDArray obs){
@@ -114,27 +104,31 @@ public class Model {
         return dist.sample().getInt(0);
     }
 
-    private INDArray gradientsClipping(INDArray output){
-        BooleanIndexing.replaceWhere(output, paramClamp, Conditions.greaterThan(paramClamp));
-        BooleanIndexing.replaceWhere(output, -paramClamp, Conditions.lessThan(-paramClamp));
-        return output;
-    }
-
     public void train(List<TDTuple> replayTuples, int batchSize, int iteration){
         if(replayTuples.size()==batchSize) {
-            List<INDArray> batchXList = new ArrayList<>();
-            List<INDArray> batchYList = new ArrayList<>();
 
-            for(TDTuple t : replayTuples){
-                INDArray qsa = model.output(t.getState().reshape(new int[]{1, t.getState().columns()}))[0];
-                int qsa_max_action_arg = Nd4j.getExecutioner().execAndReturn(new IMax(qsa)).getFinalResult().intValue();
-                INDArray qsa_prime = target.output(t.getNextState().reshape(new int[]{1, t.getNextState().columns()}))[0]; //qsa' from dual model
-                qsa.putScalar(qsa_max_action_arg, scaler.partialFitTransform(t.getReward(clipReward))+discountFactor*qsa_prime.getDouble(qsa_max_action_arg));
-                batchXList.add(t.getState());
-                batchYList.add(qsa);
+            TDTupleBatch batch = new TDTupleBatch(replayTuples, true);
+
+            // Compute Q(s_t, a) - the model computes Q(s_t), then we select the
+            // columns of actions taken. These are the actions which would've been taken
+            // for each batch state according to policy_net
+            INDArray state_action_values = model.output(batch.getStates())[0];
+
+            // Compute V(s_{t+1}) for all next states.
+            // Expected values of actions for non_final_next_states are computed based
+            // on the "older" target_net; selecting their best reward with max(1)[0].
+            // This is merged based on the mask, such that we'll have either the expected
+            // state value or 0 in case the state was final.
+            INDArray qsa = model.output(batch.getNextStates())[0];
+            int[] max_act = qsa.argMax(1).toIntVector();
+            INDArray qsa_prime = target.output(batch.getNextStates())[0];
+            double[] delta = new double[batchSize];
+            for(int i=0;i<batchSize;i++){
+                delta[i] = batch.getRewards()[i] + batch.getDone()[i] * discountFactor * qsa_prime.getFloat(i, max_act[i]);
+                state_action_values.putScalar(new int[]{i, max_act[i]}, delta[i]);
             }
 
-            Gradient g = this.gradient(Nd4j.vstack(batchXList), Nd4j.vstack(batchYList));
+            Gradient g = this.gradient(batch.getStates(), state_action_values);
             this.applyGradient(g, batchSize, iteration);
 
             this.j++;
@@ -144,17 +138,19 @@ public class Model {
         }
     }
 
+    public INDArray loss(INDArray states, INDArray target){
+        INDArray v = model.output(states)[0];
+        INDArray loss = Transforms.pow(v.sub(target), 2);
+        return loss;
+    }
+
     public Gradient gradient(INDArray input, INDArray labels) {
-        model.setInputs(input);
-        model.setLabels(labels);
-        model.computeGradientAndScore();
-        Collection<TrainingListener> valueIterationListeners = model.getListeners();
-        if (valueIterationListeners != null && valueIterationListeners.size() > 0) {
-            for (TrainingListener l : valueIterationListeners) {
-                l.onGradientCalculation(model);
-            }
-        }
-        return model.gradient();
+        INDArray lossPerPoint = loss(input, labels);
+        model.feedForward(new INDArray[]{input}, true, false);
+        Gradient g = model.backpropGradient(lossPerPoint);
+        model.setScore(lossPerPoint.meanNumber().doubleValue());
+
+        return g;
     }
 
     /**
@@ -164,10 +160,12 @@ public class Model {
      */
     private void applyGradient(Gradient gradient, int batchSize, int iteration) {
         ComputationGraphConfiguration cgConf = model.getConfiguration();
-        model.getUpdater().update(gradient, iteration, j, batchSize, LayerWorkspaceMgr.noWorkspaces());
+        int iterationCount = cgConf.getIterationCount();
+        int epochCount = cgConf.getEpochCount();
+        model.getUpdater().update(gradient, iteration, epochCount, batchSize, LayerWorkspaceMgr.noWorkspaces());
         //Get a row vector gradient array, and apply it to the parameters to update the model
-        INDArray updateVector = gradientsClipping(gradient.gradient());
-        model.params().subi(updateVector);
+        model.update(gradient);
+
         //Notify training listeners
         Collection<TrainingListener> iterationListeners = model.getListeners();
         if (iterationListeners != null && iterationListeners.size() > 0) {
@@ -175,6 +173,7 @@ public class Model {
                 listener.iterationDone(model, iteration, j);
             });
         }
+        cgConf.setIterationCount(iterationCount + 1);
     }
 
     public void saveModel(String path) throws IOException {

@@ -45,7 +45,7 @@ public class DDQN extends Agent {
             Preprocessing preprocessing,
             Model model,
             Map<String,Object> params) {
-        super(name, preprocessing, 1D);
+        super(name, preprocessing, 0.1D);
 
         rnd = Nd4j.getRandom();
         memory = new ExperienceReplayBuffer<>((int) params.getOrDefault("MEMORY_SIZE", 10000), rnd);
@@ -82,7 +82,7 @@ public class DDQN extends Agent {
             logger.log(Level.INFO, "Action: {0}", Arrays.toString(actionSpace[action]));
         }
 
-        return new Continuous(100, "action", EventType.action, actionSpace[action]);
+        return new Continuous(action, "action", EventType.action, actionSpace[action]);
     }
 
     @Override
@@ -96,6 +96,11 @@ public class DDQN extends Agent {
 
     @Override
     public void clear() {
+        INDArray testObs = Nd4j.zeros(9);
+        testObs.putScalar(4, 1);
+        INDArray testOutput = model.test(testObs);
+        System.out.println("Test Output: "+testOutput);
+
         cumReward = 0D;
         currentTuple = null;
         iteration++;
