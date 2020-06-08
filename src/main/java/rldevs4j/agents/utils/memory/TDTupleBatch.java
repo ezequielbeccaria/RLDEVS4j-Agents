@@ -18,7 +18,7 @@ public class TDTupleBatch {
     private final double[] rewards;
     private final double[] done;
 
-    public TDTupleBatch(List<TDTuple> tuples, boolean discrete) {
+    public TDTupleBatch(List<TDTuple> tuples) {
         int batchSize = tuples.size();
         int stateSize = tuples.get(0).getState().columns();
         states = Nd4j.create(batchSize, stateSize);
@@ -47,7 +47,7 @@ public class TDTupleBatch {
             INDArray a = null;
             if(t.getAction() instanceof NDArray){
                 a = (INDArray) t.getAction();
-            } else if (t.getAction() instanceof Float[]){
+            } else if (t.getAction() instanceof Float[] || t.getAction() instanceof float[]){
                 a = Nd4j.create((float[])t.getAction());
             } else {
                 a = Nd4j.create(new float[]{(int)t.getAction()});

@@ -36,6 +36,8 @@ public class A3CWorker extends Agent {
     private double cumReward;
     private final double discountFactor; //discount rate
 
+    private boolean firstTime;
+
     private Logger logger;
     private boolean debug;
     
@@ -48,10 +50,10 @@ public class A3CWorker extends Agent {
             int horizon,
             Preprocessing preprocessing,
             float[][] actionSpace) {
-        super("worker"+id, preprocessing, 1D);
+        super("worker"+id, preprocessing, 0D);
         this.actor = actor;
         this.critic = critic;
-        this.scaler = new StandartScaler(false, true);
+        this.scaler = StandartScaler.getInstance(true, true);
         this.horizon = horizon;
         this.discountFactor = discountFactor;
         this.global = global;
@@ -59,6 +61,7 @@ public class A3CWorker extends Agent {
         this.cumReward = 0;
         this.logger = Logger.getGlobal();
         this.actionSpace = actionSpace;
+        this.firstTime = true;
     }
     
     @Override
@@ -84,7 +87,7 @@ public class A3CWorker extends Agent {
             logger.info(currentTuple.toStringMinimal());
             logger.log(Level.INFO, "Action: {0}", Arrays.toString(actionSpace[action]));
         }
-        return new Continuous(100, "action", EventType.action, actionSpace[action]);
+        return new Continuous(action, "action", EventType.action, actionSpace[action]);
     }
 
     @Override
@@ -93,23 +96,27 @@ public class A3CWorker extends Agent {
     }
 
     private double[] train(){
-        TDTupleBatch batch = new TDTupleBatch(trace, false);
+        if(trace.size()>0){
+            TDTupleBatch batch = new TDTupleBatch(trace);
 
-        INDArray oldValues = critic.output(batch.getStates());
-        //gae[0] -> returns
-        //gae[1] -> advantages
-        INDArray[] gae = gae(oldValues, scaler.partialFitTransform(batch.getRewards()), batch.getDone());
+            INDArray oldValues = critic.output(batch.getStates());
+            //gae[0] -> returns
+            //gae[1] -> advantages
+            INDArray[] gae = gae(oldValues, scaler.partialFitTransform(batch.getRewards()), batch.getDone());
 
-        Gradient gActor = actor.gradient(batch.getStates(), batch.getActions(), gae[1]);
-        Gradient gCritic = critic.gradient(batch.getStates(), gae[0]);
+            Gradient gActor = actor.gradient(batch.getStates(), batch.getActions(), gae[1]);
+            Gradient gCritic = critic.gradient(batch.getStates(), gae[0]);
 
-        global.enqueueGradient(new Gradient[]{gCritic, gActor}, trace.size());
-        INDArray[] globalParams = global.getNetsParams();
+            global.enqueueGradient(new Gradient[]{gCritic, gActor}, trace.size(), new double[]{critic.getScore(), actor.getScore()});
+            INDArray[] globalParams = global.getNetsParams();
 
-        actor.setParams(globalParams[0]);
-        critic.setParams(globalParams[1]);
-
-        trace.clear();
+            if(!firstTime) {
+                actor.setParams(globalParams[0]);
+                critic.setParams(globalParams[1]);
+            }
+            firstTime = false;
+            trace.clear();
+        }
         return new double[]{0};
     }
 
@@ -143,6 +150,7 @@ public class A3CWorker extends Agent {
         train();
         //reset worker 
         this.trace.clear();
+        this.currentTuple = null;
         this.cumReward = 0;
     }
 

@@ -139,7 +139,7 @@ public class FFDiscreteActor implements DiscretePPOActor {
         ComputationGraphConfiguration cgConf = model.getConfiguration();
         int iterationCount = cgConf.getIterationCount();
         int epochCount = cgConf.getEpochCount();
-        model.getUpdater().update(gradient, iterationCount, epochCount, batchSize, LayerWorkspaceMgr.noWorkspaces());
+        this.model.getUpdater().update(gradient, iterationCount, epochCount, batchSize, LayerWorkspaceMgr.noWorkspaces());
         //Get a row vector gradient array, and apply it to the parameters to update the model
 //        INDArray updateVector = gradientsClipping(gradient.gradient());
 //        model.params().subi(updateVector);

@@ -7,17 +7,18 @@ import org.nd4j.linalg.util.ArrayUtil;
 import java.util.Arrays;
 
 public class StandartScaler {
+    private static StandartScaler INSTANCE;
     private double mean;
     private double s;
     private double n;
     private boolean useMean;
     private boolean useStd;
 
-    public StandartScaler() {
+    private StandartScaler() {
         this(true, true);
     }
 
-    public StandartScaler(boolean useMean, boolean useStd) {
+    private StandartScaler(boolean useMean, boolean useStd) {
         mean = 0D;
         s = 0D;
         n = 0;
@@ -25,11 +26,23 @@ public class StandartScaler {
         this.useStd = useStd;
     }
 
+    public static StandartScaler getInstance(boolean useMean, boolean useStd){
+        if (INSTANCE == null) {
+            // Thread Safe. Might be costly operation in some case
+            synchronized (StandartScaler.class) {
+                if (INSTANCE == null) {
+                    INSTANCE = new StandartScaler(useMean, useStd);
+                }
+            }
+        }
+        return INSTANCE;
+    }
+
     /**
      * Compute the mean and std to be used for later scaling.
      * @param v
      */
-    public void fit(double[] v){
+    public synchronized void fit(double[] v){
         INDArray a = Nd4j.create(v);
         n = v.length;
         mean = Arrays.stream(v).sum()/n;
@@ -42,7 +55,7 @@ public class StandartScaler {
      * Online computation of mean and std on X for later scaling.
      * @param v
      */
-    public void partialFit(double[] v){
+    public synchronized void partialFit(double[] v){
         for(int i=0;i<v.length;i++){
             double meanPrev = mean;
             n += 1;
@@ -56,7 +69,7 @@ public class StandartScaler {
      * @param v
      * @return
      */
-    public double[] transform(double[] v){
+    public synchronized double[] transform(double[] v){
         double[] scaled = new double[v.length];
         double cm = useMean?mean:0;
         double cs = useStd?s:0;
@@ -71,7 +84,7 @@ public class StandartScaler {
      * @param v
      * @return
      */
-    public double[] fitTransform(double[] v){
+    public synchronized double[] fitTransform(double[] v){
         fit(v);
         return transform(v);
     }
@@ -81,21 +94,21 @@ public class StandartScaler {
      * @param v
      * @return
      */
-    public double[] partialFitTransform(double[] v){
+    public synchronized double[] partialFitTransform(double[] v){
         partialFit(v);
         return transform(v);
     }
 
-    public double partialFitTransform(double v){
+    public synchronized double partialFitTransform(double v){
         partialFit(new double[]{v});
         return transform(new double[]{v})[0];
     }
 
-    public double getMean() {
+    public synchronized double getMean() {
         return mean;
     }
 
-    public double getStd(){
+    public synchronized double getStd(){
         return Math.sqrt(s/n);
     }
 }

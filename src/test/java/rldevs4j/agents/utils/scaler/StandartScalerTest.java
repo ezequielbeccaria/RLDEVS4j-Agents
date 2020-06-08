@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class StandartScalerTest {
     double[] v = new double[]{1D, 1D, -1D, -1D};
-    StandartScaler ss = new StandartScaler();
+    StandartScaler ss = StandartScaler.getInstance(true, true);
 
     @Test
     void fit() {

@@ -55,7 +55,7 @@ public class ProximalPolicyOptimization extends Agent{
         
         this.actor = actor;
         this.PPOCritic = PPOCritic;
-        this.scaler = new StandartScaler();
+        this.scaler = StandartScaler.getInstance(true, true);
         
         trace = new ArrayList<>();
         actionSize = (int) params.get("ACTION_DIM");
@@ -97,7 +97,7 @@ public class ProximalPolicyOptimization extends Agent{
     }
     
     private double[] train(){        
-        TDTupleBatch batch = new TDTupleBatch(trace, false);
+        TDTupleBatch batch = new TDTupleBatch(trace);
         //oldPi[0] -> Sample
         //oldPi[1] -> log_oldPi
         INDArray[] oldPi = actor.output(batch.getStates(), batch.getActions());

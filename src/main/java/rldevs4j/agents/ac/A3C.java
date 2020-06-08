@@ -34,7 +34,7 @@ public class A3C {
     private DiscreteACActor actor;
     private ACCritic critic;
     private float[][] actionSpace;
-    private final ConcurrentLinkedQueue<Triple<Gradient[],Integer, ComputationGraph>> queue; //gradients-batchsize
+    private final ConcurrentLinkedQueue<Triple<Gradient[],Integer, double[]>> queue; //gradients-batchsize
     private final List<A3CThread> workersThreads;
     private final double discountFactor;
     private final int horizon;
@@ -71,8 +71,8 @@ public class A3C {
     }
     
 //    public synchronized void enqueueGradient(Gradient[] gradient, int steps, ComputationGraph c){
-    public synchronized void enqueueGradient(Gradient[] gradient, int steps){
-        queue.add(new Triple<>(gradient, steps, null));
+    public synchronized void enqueueGradient(Gradient[] gradient, int steps, double[] score){
+        queue.add(new Triple<>(gradient, steps, score));
     }
 
     /**
@@ -80,11 +80,11 @@ public class A3C {
      * @param gradient
      * @param batchSize
      */
-    private void applyGradient(Gradient[] gradient, int batchSize) {
+    private void applyGradient(Gradient[] gradient, int batchSize, double[] score) {
         //Critic
-        critic.applyGradient(gradient[0], batchSize);
+        critic.applyGradient(gradient[0], batchSize, score[0]);
         //Actor
-        actor.applyGradient(gradient[1], batchSize);
+        actor.applyGradient(gradient[1], batchSize, score[1]);
     }
     
     /**
@@ -148,9 +148,10 @@ public class A3C {
                     // While loop for queued gradient updates
                     while (!isTrainingComplete()) {
                         if (!queue.isEmpty()) {
-                            Triple<Gradient[], Integer, ComputationGraph> triple = queue.poll();
+//                            System.out.println("queue size: "+queue.size());
+                            Triple<Gradient[], Integer, double[]> triple = queue.poll();
                             Gradient[] gradient = triple.getFirst();
-                            applyGradient(gradient, triple.getSecond());
+                            applyGradient(gradient, triple.getSecond(), triple.getThird());
                         }
                     }
                 }

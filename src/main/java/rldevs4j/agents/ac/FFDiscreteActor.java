@@ -1,5 +1,6 @@
 package rldevs4j.agents.ac;
 
+import org.deeplearning4j.api.storage.StatsStorage;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.ComputationGraphConfiguration;
 import org.deeplearning4j.nn.conf.GradientNormalization;
@@ -9,7 +10,7 @@ import org.deeplearning4j.nn.gradient.Gradient;
 import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.deeplearning4j.nn.weights.WeightInit;
 import org.deeplearning4j.nn.workspace.LayerWorkspaceMgr;
-import org.deeplearning4j.optimize.api.TrainingListener;
+import org.deeplearning4j.ui.stats.StatsListener;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.api.rng.Random;
@@ -22,22 +23,29 @@ import rldevs4j.agents.utils.distribution.Categorical;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
 
 public class FFDiscreteActor implements DiscreteACActor {
-    private double entropyFactor;
+    private final double entropyFactor;
+    private final double paramClamp = 1D;
     private ComputationGraph model;
     private Random rnd;
 
     public FFDiscreteActor(ComputationGraph model, double entropyFactor){
         this.rnd = Nd4j.getRandom();
         this.model = model;
+        WeightInit wi = WeightInit.XAVIER;
+        this.model.setParams(wi.getWeightInitFunction().init(
+                model.layerInputSize("h1"),
+                model.layerSize("policy"),
+                model.params().shape(),
+                'c',
+                model.params()));
         this.model.init();
 
         this.entropyFactor = entropyFactor;
     }
 
-    public FFDiscreteActor(int obsDim, int actionDim, Double learningRate, Double l2, double entropyFactor, int hSize) {
+    public FFDiscreteActor(int obsDim, int actionDim, Double learningRate, Double l2, double entropyFactor, int hSize, StatsStorage statsStorage) {
         this.rnd = Nd4j.getRandom();
         ComputationGraphConfiguration conf = new NeuralNetConfiguration.Builder()
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
@@ -47,14 +55,18 @@ public class FFDiscreteActor implements DiscreteACActor {
                 .gradientNormalizationThreshold(0.5)
                 .graphBuilder()
                 .addInputs("in")
-                .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.RELU).build(), "in")
-                .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.RELU).build(), "h1")
+                .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
+                .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.TANH).build(), "h1")
                 .addLayer("policy",new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.SOFTMAX).nIn(hSize).nOut(actionDim).build(), "h2")
                 .setOutputs("policy")
                 .build();
 
         model = new ComputationGraph(conf);
         model.init();
+        if(statsStorage!=null) {
+            this.model.setListeners(new StatsListener(statsStorage));
+        }
+
         this.entropyFactor = entropyFactor;
     }
 
@@ -108,20 +120,26 @@ public class FFDiscreteActor implements DiscreteACActor {
     }
 
     @Override
-    public void applyGradient(Gradient gradient, int batchSize) {
+    public void applyGradient(Gradient gradient, int batchSize, double score) {
         ComputationGraphConfiguration cgConf = model.getConfiguration();
         int iterationCount = cgConf.getIterationCount();
         int epochCount = cgConf.getEpochCount();
+
+        model.setScore(score);
         model.getUpdater().update(gradient, iterationCount, epochCount, batchSize, LayerWorkspaceMgr.noWorkspaces());
         //Get a row vector gradient array, and apply it to the parameters to update the model
-//        model.params().subi(gradient.gradient());
-        Collection<TrainingListener> iterationListeners = model.getListeners();
-        if (iterationListeners != null && iterationListeners.size() > 0) {
-            iterationListeners.forEach((listener) -> {
-                listener.iterationDone(model, iterationCount, epochCount);
-            });
-        }
-        cgConf.setIterationCount(iterationCount + 1);
+        model.params().subi(gradientsClipping(gradient.gradient()));
+    }
+
+    private INDArray gradientsClipping(INDArray output){
+        BooleanIndexing.replaceWhere(output, paramClamp, Conditions.greaterThan(paramClamp));
+        BooleanIndexing.replaceWhere(output, -paramClamp, Conditions.lessThan(-paramClamp));
+        return output;
+    }
+
+    @Override
+    public double getScore() {
+        return model.score();
     }
 
     @Override

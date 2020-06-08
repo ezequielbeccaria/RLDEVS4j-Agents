@@ -10,8 +10,9 @@ public interface ACCritic {
     public void loadModel(String path) throws IOException;
     public INDArray output(INDArray obs);
     public Gradient gradient(INDArray states, INDArray returns);
-    public void applyGradient(Gradient gradient, int batchSize);
+    public void applyGradient(Gradient gradient, int batchSize, double score);
     public INDArray getParams();
+    public double getScore();
     public void setParams(INDArray p);
     public ACCritic clone();
 }

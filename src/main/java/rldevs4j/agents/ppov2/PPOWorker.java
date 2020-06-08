@@ -59,7 +59,7 @@ public class PPOWorker extends Agent {
         super("worker"+id, preprocessing, 1D);
         this.actor = actor;
         this.critic = critic;
-        this.scaler = new StandartScaler(false, true);
+        this.scaler = StandartScaler.getInstance(true, true);
         this.horizon = horizon;
         this.epochs = epochs;
         this.targetKl = targetKl;
@@ -106,7 +106,7 @@ public class PPOWorker extends Agent {
     }
 
     private double[] train(){
-        TDTupleBatch batch = new TDTupleBatch(trace, true);
+        TDTupleBatch batch = new TDTupleBatch(trace);
         //oldPi[0] -> sample, oldPi[1] -> probs, oldPi[2] -> logProb, oldPi[3] -> entropy
         INDArray[] oldPi = actor.output(batch.getStates(), batch.getActions());
         INDArray oldValues = critic.output(batch.getStates());

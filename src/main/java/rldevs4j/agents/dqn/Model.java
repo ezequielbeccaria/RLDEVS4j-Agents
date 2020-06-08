@@ -77,7 +77,7 @@ public class Model {
 //        this.model.setListeners(new PerformanceListener(1));
 
         this.target = model.clone();
-        this.scaler = new StandartScaler(false, false);
+        this.scaler = StandartScaler.getInstance(true, true);
         this.discountFactor = discountFactor;
         this.c = targetUpdate;
         this.j = 0;
@@ -107,7 +107,7 @@ public class Model {
     public void train(List<TDTuple> replayTuples, int batchSize, int iteration){
         if(replayTuples.size()==batchSize) {
 
-            TDTupleBatch batch = new TDTupleBatch(replayTuples, true);
+            TDTupleBatch batch = new TDTupleBatch(replayTuples);
 
             // Compute Q(s_t, a) - the model computes Q(s_t), then we select the
             // columns of actions taken. These are the actions which would've been taken

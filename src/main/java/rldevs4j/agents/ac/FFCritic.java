@@ -1,5 +1,6 @@
 package rldevs4j.agents.ac;
 
+import org.deeplearning4j.api.storage.StatsStorage;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.ComputationGraphConfiguration;
 import org.deeplearning4j.nn.conf.GradientNormalization;
@@ -10,17 +11,16 @@ import org.deeplearning4j.nn.gradient.Gradient;
 import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.deeplearning4j.nn.weights.WeightInit;
 import org.deeplearning4j.nn.workspace.LayerWorkspaceMgr;
-import org.deeplearning4j.optimize.api.TrainingListener;
+import org.deeplearning4j.ui.stats.StatsListener;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.indexing.BooleanIndexing;
 import org.nd4j.linalg.indexing.conditions.Conditions;
-import org.nd4j.linalg.learning.config.RmsProp;
+import org.nd4j.linalg.learning.config.Adam;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
 
 
 public class FFCritic implements ACCritic {
@@ -29,25 +29,35 @@ public class FFCritic implements ACCritic {
 
     public FFCritic(ComputationGraph model){
         this.model = model;
+        WeightInit wi = WeightInit.XAVIER;
+        this.model.setParams(wi.getWeightInitFunction().init(
+                model.layerInputSize("h1"),
+                model.layerSize("value"),
+                model.params().shape(),
+                'c',
+                model.params()));
         this.model.init();
     }
 
-    public FFCritic(int obsDim, Double learningRate, Double l2, int hSize){
+    public FFCritic(int obsDim, Double learningRate, Double l2, int hSize, StatsStorage statsStorage){
         ComputationGraphConfiguration conf = new NeuralNetConfiguration.Builder()
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
-                .updater(new RmsProp(learningRate))
+                .updater(new Adam(learningRate))
                 .weightInit(WeightInit.XAVIER)
                 .gradientNormalization(GradientNormalization.ClipL2PerParamType)
                 .gradientNormalizationThreshold(0.5)
                 .graphBuilder()
                 .addInputs("in")
-                .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.RELU).build(), "in")
-                .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.RELU).build(), "h1")
+                .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
+                .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.TANH).build(), "h1")
                 .addLayer("value", new OutputLayer.Builder(LossFunctions.LossFunction.MSE).activation(Activation.IDENTITY).nIn(hSize).nOut(1).build(), "h2")
                 .setOutputs("value")
                 .build();
         model = new ComputationGraph(conf);
         model.init();
+        if(statsStorage!=null) {
+            this.model.setListeners(new StatsListener(statsStorage));
+        }
     }
 
     @Override
@@ -87,26 +97,24 @@ public class FFCritic implements ACCritic {
      * @param batchSize
      */
     @Override
-    public void applyGradient(Gradient gradient, int batchSize) {
+    public void applyGradient(Gradient gradient, int batchSize, double score) {
         ComputationGraphConfiguration cgConf = model.getConfiguration();
         int iterationCount = cgConf.getIterationCount();
         int epochCount = cgConf.getEpochCount();
+        model.setScore(score);
         model.getUpdater().update(gradient, iterationCount, epochCount, batchSize, LayerWorkspaceMgr.noWorkspaces());
         //Get a row vector gradient array, and apply it to the parameters to update the model
-//        INDArray updateVector = gradientsClipping(gradient.gradient());
-//        model.params().subi(updateVector);
-        Collection<TrainingListener> iterationListeners = model.getListeners();
-        if (iterationListeners != null && iterationListeners.size() > 0) {
-            iterationListeners.forEach((listener) -> {
-                listener.iterationDone(model, iterationCount, epochCount);
-            });
-        }
-        cgConf.setIterationCount(iterationCount + 1);
+        model.params().subi(gradientsClipping(gradient.gradient()));
     }
 
     @Override
     public INDArray getParams() {
         return model.params();
+    }
+
+    @Override
+    public double getScore() {
+        return model.score();
     }
 
     @Override
