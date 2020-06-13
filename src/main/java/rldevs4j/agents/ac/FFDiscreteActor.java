@@ -51,8 +51,8 @@ public class FFDiscreteActor implements DiscreteACActor {
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .updater(new Adam(learningRate))
                 .weightInit(WeightInit.XAVIER)
-                .gradientNormalization(GradientNormalization.ClipL2PerParamType)
-                .gradientNormalizationThreshold(0.5)
+                .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
+                .gradientNormalizationThreshold(1.0)
                 .graphBuilder()
                 .addInputs("in")
                 .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
@@ -128,7 +128,8 @@ public class FFDiscreteActor implements DiscreteACActor {
         model.setScore(score);
         model.getUpdater().update(gradient, iterationCount, epochCount, batchSize, LayerWorkspaceMgr.noWorkspaces());
         //Get a row vector gradient array, and apply it to the parameters to update the model
-        model.params().subi(gradientsClipping(gradient.gradient()));
+//        model.params().subi(gradientsClipping(gradient.gradient()));
+        model.params().subi(gradient.gradient());
     }
 
     private INDArray gradientsClipping(INDArray output){
@@ -149,7 +150,7 @@ public class FFDiscreteActor implements DiscreteACActor {
 
     @Override
     public void setParams(INDArray p){
-        model.setParams(p);
+        model.setParams(p.dup());
     }
 
     @Override

@@ -44,8 +44,8 @@ public class FFCritic implements ACCritic {
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .updater(new Adam(learningRate))
                 .weightInit(WeightInit.XAVIER)
-                .gradientNormalization(GradientNormalization.ClipL2PerParamType)
-                .gradientNormalizationThreshold(0.5)
+                .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
+                .gradientNormalizationThreshold(1.0)
                 .graphBuilder()
                 .addInputs("in")
                 .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
@@ -119,7 +119,8 @@ public class FFCritic implements ACCritic {
 
     @Override
     public void setParams(INDArray p) {
-        model.setParams(p);
+//        model.setParams(model.params().mul(0.9).add(p.mul(0.1)));
+        model.setParams(p.dup());
     }
 
     @Override
