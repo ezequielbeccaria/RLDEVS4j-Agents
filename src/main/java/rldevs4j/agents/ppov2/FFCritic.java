@@ -33,9 +33,17 @@ public class FFCritic implements PPOCritic {
     private final double paramClamp = 1D;
     private float epsilonClip;
 
-    public FFCritic(ComputationGraph model){
+    public FFCritic(ComputationGraph model, float epsilonClip){
         this.model = model;
+//        WeightInit wi = WeightInit.XAVIER;
+//        this.model.setParams(wi.getWeightInitFunction().init(
+//                model.layerInputSize("h1"),
+//                model.layerSize("value"),
+//                model.params().shape(),
+//                'c',
+//                model.params()));
         this.model.init();
+        this.epsilonClip = epsilonClip;
     }
 
     public FFCritic(int obsDim, Double learningRate, Double l2, float epsilonClip, int hSize, StatsStorage statsStorage){
@@ -43,8 +51,8 @@ public class FFCritic implements PPOCritic {
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .updater(new Adam(learningRate))
                 .weightInit(WeightInit.XAVIER)
-                .gradientNormalization(GradientNormalization.ClipL2PerParamType)
-                .gradientNormalizationThreshold(0.5)
+//                .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
+//                .gradientNormalizationThreshold(2.0)
                 .graphBuilder()
                 .addInputs("in")
                 .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
@@ -93,6 +101,13 @@ public class FFCritic implements PPOCritic {
         model.feedForward(new INDArray[]{states}, true, false);
         Gradient g = model.backpropGradient(lossPerPoint);
         model.setScore(lossPerPoint.meanNumber().doubleValue());
+
+        ComputationGraphConfiguration cgConf = model.getConfiguration();
+        int iterationCount = cgConf.getIterationCount();
+        int epochCount = cgConf.getEpochCount();
+        this.model.getUpdater().update(g, iterationCount, epochCount, states.rows(), LayerWorkspaceMgr.noWorkspaces());
+        this.model.update(g);
+
         return g;
     }
 
@@ -109,21 +124,10 @@ public class FFCritic implements PPOCritic {
      * @param batchSize
      */
     @Override
-    public void applyGradient(Gradient gradient, int batchSize, ComputationGraph model) {
-        ComputationGraphConfiguration cgConf = model.getConfiguration();
-        int iterationCount = cgConf.getIterationCount();
-        int epochCount = cgConf.getEpochCount();
-        model.getUpdater().update(gradient, iterationCount, epochCount, batchSize, LayerWorkspaceMgr.noWorkspaces());
+    public void applyGradient(INDArray gradient, int batchSize) {
         //Get a row vector gradient array, and apply it to the parameters to update the model
-//        INDArray updateVector = gradientsClipping(gradient.gradient());
-//        model.params().subi(updateVector);
-        Collection<TrainingListener> iterationListeners = model.getListeners();
-        if (iterationListeners != null && iterationListeners.size() > 0) {
-            iterationListeners.forEach((listener) -> {
-                listener.iterationDone(model, iterationCount, epochCount);
-            });
-        }
-        cgConf.setIterationCount(iterationCount + 1);
+//        model.params().subi(gradientsClipping(gradient.gradient()));
+        model.params().subi(gradient);
     }
 
     @Override
@@ -133,7 +137,8 @@ public class FFCritic implements PPOCritic {
 
     @Override
     public void setParams(INDArray p) {
-        model.setParams(p);
+//        model.setParams(model.params().mul(0.9).add(p.mul(0.1)));
+        model.setParams(p.dup());
     }
 
     @Override
@@ -143,6 +148,6 @@ public class FFCritic implements PPOCritic {
 
     @Override
     public PPOCritic clone() {
-        return new FFCritic(model.clone());
+        return new FFCritic(model.clone(), epsilonClip);
     }
 }

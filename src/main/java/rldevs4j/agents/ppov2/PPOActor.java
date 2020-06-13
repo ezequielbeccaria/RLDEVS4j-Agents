@@ -11,7 +11,7 @@ public interface PPOActor {
     public void loadModel(String path) throws IOException;
     public INDArray[] output(INDArray obs, INDArray act);
     public Gradient gradient(INDArray states , INDArray actions, INDArray advantages, INDArray logProbOld);
-    public void applyGradient(Gradient gradient, int batchSize, ComputationGraph workerModel);
+    public void applyGradient(INDArray gradient, int batchSize);
     public INDArray getParams();
     public void setParams(INDArray p);
     public ComputationGraph getModel();

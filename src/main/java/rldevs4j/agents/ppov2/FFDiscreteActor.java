@@ -32,18 +32,22 @@ public class FFDiscreteActor implements DiscretePPOActor {
     private float entropyFactor;
     private float epsilonClip;
     private ComputationGraph model;
-    private Random rnd;
     private float currentApproxKL;
 
     public FFDiscreteActor(String modelPath) throws IOException {
-        this.rnd = Nd4j.getRandom();
         this.loadModel(modelPath);
         this.model.init();
     }
 
     public FFDiscreteActor(ComputationGraph model, float entropyFactor, float epsilonClip){
-        this.rnd = Nd4j.getRandom();
         this.model = model;
+//        WeightInit wi = WeightInit.XAVIER;
+//        this.model.setParams(wi.getWeightInitFunction().init(
+//                model.layerInputSize("h1"),
+//                model.layerSize("policy"),
+//                model.params().shape(),
+//                'c',
+//                model.params()));
         this.model.init();
 
         this.entropyFactor = entropyFactor;
@@ -51,13 +55,12 @@ public class FFDiscreteActor implements DiscretePPOActor {
     }
 
     public FFDiscreteActor(int obsDim, int actionDim, Double learningRate, Double l2, float entropyFactor, float epsilonClip, int hSize, StatsStorage statsStorage) {
-        this.rnd = Nd4j.getRandom();
         ComputationGraphConfiguration conf = new NeuralNetConfiguration.Builder()
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .updater(new Adam(learningRate))
                 .weightInit(WeightInit.XAVIER)
-                .gradientNormalization(GradientNormalization.ClipL2PerParamType)
-                .gradientNormalizationThreshold(0.5)
+//                .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
+//                .gradientNormalizationThreshold(2.0)
                 .graphBuilder()
                 .addInputs("in")
                 .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
@@ -115,7 +118,8 @@ public class FFDiscreteActor implements DiscretePPOActor {
     private INDArray loss(INDArray states , INDArray actions, INDArray advantages, INDArray logProbOld){
         //output[0] -> sample, output[1] -> probs, output[2] -> logProb, output[3] -> entropy
         INDArray[] output = this.output(states, actions);
-        INDArray ratio = Transforms.exp(output[1].sub(logProbOld));
+        INDArray logPi = Transforms.log(output[1]);
+        INDArray ratio = Transforms.exp(logPi.sub(logProbOld));
         INDArray clipAdv = ratio.dup();
         AgentUtils.clamp(clipAdv, 1D-epsilonClip, 1D+epsilonClip);
         clipAdv.muliColumnVector(advantages);
@@ -131,25 +135,21 @@ public class FFDiscreteActor implements DiscretePPOActor {
         model.feedForward(new INDArray[]{states}, true, false);
         Gradient g = model.backpropGradient(lossPerPoint);
         model.setScore(lossPerPoint.meanNumber().doubleValue());
+
+        ComputationGraphConfiguration cgConf = model.getConfiguration();
+        int iterationCount = cgConf.getIterationCount();
+        int epochCount = cgConf.getEpochCount();
+        this.model.getUpdater().update(g, iterationCount, epochCount, states.rows(), LayerWorkspaceMgr.noWorkspaces());
+        this.model.update(g);
+
         return g;
     }
 
     @Override
-    public void applyGradient(Gradient gradient, int batchSize, ComputationGraph model) {
-        ComputationGraphConfiguration cgConf = model.getConfiguration();
-        int iterationCount = cgConf.getIterationCount();
-        int epochCount = cgConf.getEpochCount();
-        this.model.getUpdater().update(gradient, iterationCount, epochCount, batchSize, LayerWorkspaceMgr.noWorkspaces());
+    public void applyGradient(INDArray gradient, int batchSize) {
         //Get a row vector gradient array, and apply it to the parameters to update the model
-//        INDArray updateVector = gradientsClipping(gradient.gradient());
-//        model.params().subi(updateVector);
-        Collection<TrainingListener> iterationListeners = model.getListeners();
-        if (iterationListeners != null && iterationListeners.size() > 0) {
-            iterationListeners.forEach((listener) -> {
-                listener.iterationDone(model, iterationCount, epochCount);
-            });
-        }
-        cgConf.setIterationCount(iterationCount + 1);
+//        model.params().subi(gradientsClipping(gradient.gradient()));
+        model.params().subi(gradient);
     }
 
     private INDArray gradientsClipping(INDArray output){
@@ -166,7 +166,8 @@ public class FFDiscreteActor implements DiscretePPOActor {
 
     @Override
     public void setParams(INDArray p){
-        model.setParams(p);
+//        model.setParams(model.params().mul(0.9).add(p.mul(0.1)));
+        model.setParams(p.dup());
     }
 
     @Override

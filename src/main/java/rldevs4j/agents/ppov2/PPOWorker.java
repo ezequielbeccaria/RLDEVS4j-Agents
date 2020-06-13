@@ -5,6 +5,7 @@ import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.cpu.nativecpu.NDArray;
 import org.nd4j.linalg.factory.Nd4j;
+import org.nd4j.linalg.ops.transforms.Transforms;
 import rldevs4j.agents.utils.memory.TDTuple;
 import rldevs4j.agents.utils.memory.TDTupleBatch;
 import rldevs4j.agents.utils.scaler.StandartScaler;
@@ -40,6 +41,7 @@ public class PPOWorker extends Agent {
     private float cumReward;
     private final float discountFactor; //discount rate
     private final float lambdaGae;
+    private boolean firstTime;
 
     private Logger logger;
     private boolean debug;
@@ -56,10 +58,10 @@ public class PPOWorker extends Agent {
             float targetKl,
             Preprocessing preprocessing,
             float[][] actionSpace) {
-        super("worker"+id, preprocessing, 1D);
+        super("worker"+id, preprocessing, 0D);
         this.actor = actor;
         this.critic = critic;
-        this.scaler = StandartScaler.getInstance(true, true);
+        this.scaler = StandartScaler.getInstance(false, false);
         this.horizon = horizon;
         this.epochs = epochs;
         this.targetKl = targetKl;
@@ -70,6 +72,7 @@ public class PPOWorker extends Agent {
         this.cumReward = 0;
         this.logger = Logger.getGlobal();
         this.actionSpace = actionSpace;
+        this.firstTime = true;
     }
     
     @Override
@@ -97,7 +100,7 @@ public class PPOWorker extends Agent {
             logger.info(currentTuple.toStringMinimal());
             logger.log(Level.INFO, "Action: {0}", Arrays.toString(actionSpace[action]));
         }
-        return new Continuous(100, "action", EventType.action, actionSpace[action]);
+        return new Continuous(action, "action", EventType.action, actionSpace[action]);
     }
 
     @Override
@@ -106,34 +109,45 @@ public class PPOWorker extends Agent {
     }
 
     private double[] train(){
-        TDTupleBatch batch = new TDTupleBatch(trace);
-        //oldPi[0] -> sample, oldPi[1] -> probs, oldPi[2] -> logProb, oldPi[3] -> entropy
-        INDArray[] oldPi = actor.output(batch.getStates(), batch.getActions());
-        INDArray oldValues = critic.output(batch.getStates());
-        //gae[0] -> returns
-        //gae[1] -> advantages
-        INDArray[] gae = gae(oldValues, scaler.partialFitTransform(batch.getRewards()), batch.getDone());
+        if(trace.size()>0) {
+            TDTupleBatch batch = new TDTupleBatch(trace);
+            //oldPi[0] -> sample, oldPi[1] -> probs, oldPi[2] -> logProb, oldPi[3] -> entropy
+            INDArray[] oldPi = actor.output(batch.getStates(), batch.getActions());
+            INDArray oldValues = critic.output(batch.getStates());
+            //gae[0] -> returns
+            //gae[1] -> advantages
+            INDArray[] gae = gae(oldValues, scaler.partialFitTransform(batch.getRewards()), batch.getDone());
+            INDArray logOldPi = Transforms.log(oldPi[1]);
 
-        for(int i=0;i<epochs;i++){
-            Gradient gActor = actor.gradient(batch.getStates(), batch.getActions(), gae[1], oldPi[2]);
-            Gradient gCritic = critic.gradient(batch.getStates(), oldValues, gae[0]);
-            if(actor.getCurrentApproxKL() > 1.5 * targetKl) {
-                System.out.println(String.format("Early stopping at epoch %d due to reaching max kl: %f", i, actor.getCurrentApproxKL()));
-                break;
+            INDArray gActor = null;
+            INDArray gCritic = null;
+
+            for (int i = 0; i < epochs; i++) {
+                if (gActor == null) {
+                    gActor = actor.gradient(batch.getStates(), batch.getActions(), gae[1], logOldPi).gradient();
+                    gCritic = critic.gradient(batch.getStates(), oldValues, gae[0]).gradient();
+                } else {
+                    gActor.addi(actor.gradient(batch.getStates(), batch.getActions(), gae[1], logOldPi).gradient());
+                    gCritic.addi(critic.gradient(batch.getStates(), oldValues, gae[0]).gradient());
+                }
+
+                if (actor.getCurrentApproxKL() > 1.5 * targetKl) {
+                    System.out.println(String.format("Early stopping at epoch %d due to reaching max kl: %f", i, actor.getCurrentApproxKL()));
+                    break;
+                }
             }
+
             global.enqueueGradient(
-                    new Gradient[]{gCritic, gActor},
-                    trace.size(),
-                    new ComputationGraph[]{critic.getModel(), actor.getModel()});
+                    new INDArray[]{gActor.dup(), gCritic.dup()},
+                    trace.size());
+
+            INDArray[] globalParams = global.getNetsParams();
+
+            actor.setParams(globalParams[0]);
+            critic.setParams(globalParams[1]);
+
+            trace.clear();
         }
-
-
-        INDArray[] globalParams = global.getNetsParams();
-
-        actor.setParams(globalParams[0]);
-        critic.setParams(globalParams[1]);
-
-        trace.clear();
         return new double[]{0};
     }
 

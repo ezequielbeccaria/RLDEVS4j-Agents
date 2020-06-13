@@ -141,21 +141,9 @@ public class LSTMDiscreteActor implements DiscretePPOActor {
     }
 
     @Override
-    public void applyGradient(Gradient gradient, int batchSize, ComputationGraph model) {
-        ComputationGraphConfiguration cgConf = model.getConfiguration();
-        int iterationCount = cgConf.getIterationCount();
-        int epochCount = cgConf.getEpochCount();
-        model.getUpdater().update(gradient, iterationCount, epochCount, batchSize, LayerWorkspaceMgr.noWorkspaces());
+    public void applyGradient(INDArray gradient, int batchSize) {
         //Get a row vector gradient array, and apply it to the parameters to update the model
-//        INDArray updateVector = gradientsClipping(gradient.gradient());
-//        model.params().subi(updateVector);
-        Collection<TrainingListener> iterationListeners = model.getListeners();
-        if (iterationListeners != null && iterationListeners.size() > 0) {
-            iterationListeners.forEach((listener) -> {
-                listener.iterationDone(model, iterationCount, epochCount);
-            });
-        }
-        cgConf.setIterationCount(iterationCount + 1);
+        model.params().subi(gradient);
     }
 
     private INDArray gradientsClipping(INDArray output){

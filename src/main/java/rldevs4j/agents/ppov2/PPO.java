@@ -36,7 +36,7 @@ public class PPO {
     private DiscretePPOActor actor;
     private PPOCritic critic;
     private float[][] actionSpace;
-    private final ConcurrentLinkedQueue<Triple<Gradient[],Integer, ComputationGraph[]>> queue; //gradients-batchsize
+    private final ConcurrentLinkedQueue<Triple<INDArray[],Integer, ComputationGraph[]>> queue; //gradients-batchsize
     private final List<PPOThread> workersThreads;
     private final float discountFactor;
     private final float lambdaGae;
@@ -80,8 +80,8 @@ public class PPO {
     }
     
 //    public synchronized void enqueueGradient(Gradient[] gradient, int steps, ComputationGraph c){
-    public synchronized void enqueueGradient(Gradient[] gradient, int steps, ComputationGraph[] workerModels){
-        queue.add(new Triple<>(gradient, steps, workerModels));
+    public synchronized void enqueueGradient(INDArray[] gradient, int steps){
+        queue.add(new Triple<>(gradient, steps, null));
     }
 
     /**
@@ -89,11 +89,11 @@ public class PPO {
      * @param gradient
      * @param batchSize
      */
-    private void applyGradient(Gradient[] gradient, int batchSize, ComputationGraph[] workerModels) {
-        //Critic
-        critic.applyGradient(gradient[0], batchSize, workerModels[0]);
+    private void applyGradient(INDArray[] gradient, int batchSize) {
         //Actor
-        actor.applyGradient(gradient[1], batchSize, workerModels[1]);
+        actor.applyGradient(gradient[0], batchSize);
+        //Critic
+        critic.applyGradient(gradient[1], batchSize);
     }
     
     /**
@@ -104,7 +104,7 @@ public class PPO {
      */
     public synchronized void saveStatistics(String thread, int episode, double episodeReward, long episodeTime){
         results.addResult(episodeReward, episodeTime);        
-        if(episode%10==0 && this.debug)
+        if(episode%1==0 && this.debug)
             logger.log(Level.INFO, "{0} episode {1} terminated. Reward: {2}. Avg-Reward: {3}", new Object[]{thread, episode, episodeReward, results.getLastAverageReward()});
         if(episode%modelBackupInterval==0 && this.debug) {
             try {
@@ -166,10 +166,9 @@ public class PPO {
                     // While loop for queued gradient updates
                     while (!isTrainingComplete()) {
                         if (!queue.isEmpty()) {
-                            Triple<Gradient[], Integer, ComputationGraph[]> triple = queue.poll();
-                            Gradient[] gradient = triple.getFirst();
-                            ComputationGraph[] workerModels = triple.getThird();
-                            applyGradient(gradient, triple.getSecond(), workerModels);
+                            Triple<INDArray[], Integer, ComputationGraph[]> triple = queue.poll();
+                            INDArray[] gradient = triple.getFirst();
+                            applyGradient(gradient, triple.getSecond());
                         }
                     }
                 }

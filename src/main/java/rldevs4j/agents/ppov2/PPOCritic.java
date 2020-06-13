@@ -11,7 +11,7 @@ public interface PPOCritic {
     public void loadModel(String path) throws IOException;
     public INDArray output(INDArray obs);
     public Gradient gradient(INDArray states, INDArray oldValues, INDArray returns);
-    public void applyGradient(Gradient gradient, int batchSize, ComputationGraph workerModel);
+    public void applyGradient(INDArray gradient, int batchSize);
     public INDArray getParams();
     public void setParams(INDArray p);
     public ComputationGraph getModel();
