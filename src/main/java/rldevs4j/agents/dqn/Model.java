@@ -49,17 +49,19 @@ public class Model {
             int outputDim,
             Double learningRate,
             double discountFactor,
-            boolean clipReward,
+            double clipReward,
             int targetUpdate,
             int hSize,
+            boolean rwdMeanScale,
+            boolean rwdStdScale,
             StatsStorage statsStorage){
 
         ComputationGraphConfiguration conf = new NeuralNetConfiguration.Builder()
             .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
             .updater(new Adam(learningRate))
             .weightInit(WeightInit.XAVIER)
-            .gradientNormalization(GradientNormalization.ClipL2PerParamType)
-            .gradientNormalizationThreshold(0.5)
+            .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
+            .gradientNormalizationThreshold(clipReward)
             .graphBuilder()
             .addInputs("in")
             .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.RELU).build(), "in")
@@ -77,7 +79,7 @@ public class Model {
 //        this.model.setListeners(new PerformanceListener(1));
 
         this.target = model.clone();
-        this.scaler = StandartScaler.getInstance(true, true);
+        this.scaler = StandartScaler.getInstance(rwdMeanScale, rwdStdScale);
         this.discountFactor = discountFactor;
         this.c = targetUpdate;
         this.j = 0;
@@ -86,11 +88,13 @@ public class Model {
     public Model(Map<String,Object> params){
         this((int) params.get("OBS_DIM"),
             (int) params.get("OUTPUT_DIM"),
-            (double) params.getOrDefault("LEARNING_RATE", 1e-3),
-            (double) params.getOrDefault("DISCOUNT_FACTOR", 1e-3),
-            (boolean) params.getOrDefault("CLIP_REWARD", false),
-            (int) params.getOrDefault("TARGET_UPDATE", 50),
-            (int) params.getOrDefault("HIDDEN_SIZE", 128),
+            (double) params.get("LEARNING_RATE"),
+            (double) params.get("DISCOUNT_RATE"),
+            (double) params.get("CLIP_REWARD"),
+            (int) params.get("TARGET_UPDATE"),
+            (int) params.get("HIDDEN_SIZE"),
+            (boolean) params.get("RWD_MEAN_SCALE"),
+            (boolean) params.get("RWD_STD_SCALE"),
             (StatsStorage) params.getOrDefault("STATS_STORAGE", null));
     }
 
@@ -123,8 +127,9 @@ public class Model {
             int[] max_act = qsa.argMax(1).toIntVector();
             INDArray qsa_prime = target.output(batch.getNextStates())[0];
             double[] delta = new double[batchSize];
+            double[] scaledRwd = scaler.partialFitTransform(batch.getRewards());
             for(int i=0;i<batchSize;i++){
-                delta[i] = batch.getRewards()[i] + batch.getDone()[i] * discountFactor * qsa_prime.getFloat(i, max_act[i]);
+                delta[i] = scaledRwd[i] + batch.getDone()[i] * discountFactor * qsa_prime.getFloat(i, max_act[i]);
                 state_action_values.putScalar(new int[]{i, max_act[i]}, delta[i]);
             }
 
