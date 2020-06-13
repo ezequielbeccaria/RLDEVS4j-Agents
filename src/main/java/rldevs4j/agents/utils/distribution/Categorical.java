@@ -1,6 +1,7 @@
 package rldevs4j.agents.utils.distribution;
 
 import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.api.rng.Random;
 import org.nd4j.linalg.factory.Nd4j;
 import org.nd4j.linalg.indexing.BooleanIndexing;
 import org.nd4j.linalg.indexing.NDArrayIndex;
@@ -15,6 +16,7 @@ public class Categorical implements Distribution{
     private INDArray probs;
     private INDArray logits;
     private final double eps = Nd4j.EPS_THRESHOLD;
+    private final Random rnd;
 
     public Categorical(INDArray probs) {
         this(probs, null);
@@ -36,6 +38,7 @@ public class Categorical implements Distribution{
                 logits = logits.reshape(1, -1);
             this.logits = logits.sub(AgentUtils.logSumExp(logits));
         }
+        rnd = Nd4j.getRandomFactory().getNewRandomInstance();
     }
 
     @Override
@@ -46,7 +49,7 @@ public class Categorical implements Distribution{
         INDArray cumProbs = probs.cumsum(-1);
         long[][] sample = new long[probs.rows()][1];
         for(int i=0;i<probs.rows();i++){
-            float rndProb = Nd4j.getRandom().nextFloat();
+            float rndProb = rnd.nextFloat();
             int idx = BooleanIndexing.firstIndex(cumProbs.getRow(i), Conditions.greaterThan(rndProb)).getInt(0);
             sample[i][0] = idx;
         }
