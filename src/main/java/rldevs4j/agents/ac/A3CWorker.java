@@ -8,10 +8,7 @@ import rldevs4j.agents.utils.memory.TDTupleBatch;
 import rldevs4j.agents.utils.scaler.StandartScaler;
 import rldevs4j.base.agent.Agent;
 import rldevs4j.base.agent.preproc.Preprocessing;
-import rldevs4j.base.env.msg.Continuous;
-import rldevs4j.base.env.msg.Event;
-import rldevs4j.base.env.msg.EventType;
-import rldevs4j.base.env.msg.Step;
+import rldevs4j.base.env.msg.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -87,7 +84,8 @@ public class A3CWorker extends Agent {
             logger.info(currentTuple.toStringMinimal());
             logger.log(Level.INFO, "Action: {0}", Arrays.toString(actionSpace[action]));
         }
-        return new Continuous(action, "action", EventType.action, actionSpace[action]);
+//        return new Continuous(action, "action", EventType.action, actionSpace[action]);
+        return new Categorical<Integer>(action, "action", EventType.action, action);
     }
 
     @Override
@@ -111,8 +109,8 @@ public class A3CWorker extends Agent {
             INDArray[] globalParams = global.getNetsParams();
 
             if(!firstTime) {
-                actor.setParams(globalParams[0]);
-                critic.setParams(globalParams[1]);
+                critic.setParams(globalParams[0]);
+                actor.setParams(globalParams[1]);
             }
             firstTime = false;
             trace.clear();

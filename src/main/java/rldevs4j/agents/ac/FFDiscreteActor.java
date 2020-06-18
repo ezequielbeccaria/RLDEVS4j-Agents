@@ -26,7 +26,7 @@ import java.io.IOException;
 
 public class FFDiscreteActor implements DiscreteACActor {
     private final double entropyFactor;
-    private final double paramClamp = 1D;
+    private final double paramClip = 1D;
     private ComputationGraph model;
     private Random rnd;
 
@@ -52,7 +52,9 @@ public class FFDiscreteActor implements DiscreteACActor {
                 .updater(new Adam(learningRate))
                 .weightInit(WeightInit.XAVIER)
                 .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
-                .gradientNormalizationThreshold(1.0)
+                .gradientNormalizationThreshold(paramClip)
+                .l2(l2)
+                .l2Bias(l2)
                 .graphBuilder()
                 .addInputs("in")
                 .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
@@ -116,26 +118,19 @@ public class FFDiscreteActor implements DiscreteACActor {
         INDArray lossPerPoint = loss(states, actions, advantages);
         model.feedForward(new INDArray[]{states}, true, false);
         Gradient g = model.backpropGradient(lossPerPoint);
+
+        ComputationGraphConfiguration cgConf = model.getConfiguration();
+        int iterationCount = cgConf.getIterationCount();
+        int epochCount = cgConf.getEpochCount();
+        this.model.getUpdater().update(g, iterationCount, epochCount, states.rows(), LayerWorkspaceMgr.noWorkspaces());
+        this.model.update(g);
+
         return g;
     }
 
     @Override
     public void applyGradient(Gradient gradient, int batchSize, double score) {
-        ComputationGraphConfiguration cgConf = model.getConfiguration();
-        int iterationCount = cgConf.getIterationCount();
-        int epochCount = cgConf.getEpochCount();
-
-        model.setScore(score);
-        model.getUpdater().update(gradient, iterationCount, epochCount, batchSize, LayerWorkspaceMgr.noWorkspaces());
-        //Get a row vector gradient array, and apply it to the parameters to update the model
-//        model.params().subi(gradientsClipping(gradient.gradient()));
         model.params().subi(gradient.gradient());
-    }
-
-    private INDArray gradientsClipping(INDArray output){
-        BooleanIndexing.replaceWhere(output, paramClamp, Conditions.greaterThan(paramClamp));
-        BooleanIndexing.replaceWhere(output, -paramClamp, Conditions.lessThan(-paramClamp));
-        return output;
     }
 
     @Override

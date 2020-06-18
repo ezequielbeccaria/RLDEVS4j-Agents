@@ -63,7 +63,7 @@ public class A3C {
         this.discountFactor = (double) params.getOrDefault("DISCOUNT_RATE", 0.99D);
         this.horizon = (int) params.getOrDefault("HORIZON", 100);
         this.queue = new ConcurrentLinkedQueue();
-        this.episodesPerWorker = (int) params.getOrDefault("EPISODES_WORKER", 10);
+        this.episodesPerWorker = (int) params.get("EPISODES_WORKER");
         this.episodeMaxSimTime = (double) params.getOrDefault("SIMULATION_TIME", 3000);
         this.actionSpace = (float[][]) params.get("ACTION_SPACE");
         this.debug = (boolean) params.getOrDefault("DEBUG", false);
@@ -95,7 +95,7 @@ public class A3C {
      */
     public synchronized void saveStatistics(String thread, int episode, double episodeReward, long episodeTime){
         results.addResult(episodeReward, episodeTime);        
-        if(episode%5==0 && this.debug)
+        if(episode%1==0 && this.debug)
             logger.log(Level.INFO, "{0} episode {1} terminated. Reward: {2}. Avg-Reward: {3}", new Object[]{thread, episode, episodeReward, results.getLastAverageReward()});   
     }
     
@@ -161,7 +161,7 @@ public class A3C {
     }
     
     public synchronized INDArray[] getNetsParams(){
-        return new INDArray[]{this.actor.getParams(), this.critic.getParams()};
+        return new INDArray[]{this.critic.getParams(), this.actor.getParams()};
     }
 
     public ExperimentResult getResults() {
