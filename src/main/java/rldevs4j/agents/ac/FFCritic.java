@@ -111,7 +111,7 @@ public class FFCritic implements ACCritic {
     @Override
     public void applyGradient(Gradient gradient, int batchSize, double score) {
         //Get a row vector gradient array, and apply it to the parameters to update the model
-        model.params().subi(gradient.gradient());
+        model.params().addi(gradient.gradient());
     }
 
     @Override

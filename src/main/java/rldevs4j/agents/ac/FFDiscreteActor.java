@@ -130,7 +130,7 @@ public class FFDiscreteActor implements DiscreteACActor {
 
     @Override
     public void applyGradient(Gradient gradient, int batchSize, double score) {
-        model.params().subi(gradient.gradient());
+        model.params().addi(gradient.gradient());
     }
 
     @Override
