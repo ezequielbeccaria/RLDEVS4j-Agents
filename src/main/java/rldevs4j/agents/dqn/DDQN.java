@@ -96,11 +96,6 @@ public class DDQN extends Agent {
 
     @Override
     public void clear() {
-        INDArray testObs = Nd4j.zeros(10);
-        testObs.putScalar(4, 1);
-        INDArray testOutput = model.test(testObs);
-        System.out.println("Test Output: "+testOutput);
-
         cumReward = 0D;
         currentTuple = null;
         iteration++;

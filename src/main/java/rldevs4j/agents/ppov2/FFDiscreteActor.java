@@ -59,8 +59,9 @@ public class FFDiscreteActor implements DiscretePPOActor {
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .updater(new Adam(learningRate))
                 .weightInit(WeightInit.XAVIER)
-//                .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
-//                .gradientNormalizationThreshold(2.0)
+                .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
+                .gradientNormalizationThreshold(paramClamp)
+                .l2(l2)
                 .graphBuilder()
                 .addInputs("in")
                 .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
@@ -123,7 +124,9 @@ public class FFDiscreteActor implements DiscretePPOActor {
         INDArray clipAdv = ratio.dup();
         AgentUtils.clamp(clipAdv, 1D-epsilonClip, 1D+epsilonClip);
         clipAdv.muliColumnVector(advantages);
-        INDArray lossPerPoint = Transforms.min(ratio.mulColumnVector(advantages), clipAdv).addiColumnVector(output[3].mul(this.entropyFactor)).negi();
+        INDArray lossPerPoint = Transforms.min(ratio.mulColumnVector(advantages), clipAdv);
+        lossPerPoint.addiColumnVector(output[3].mul(this.entropyFactor));
+        lossPerPoint.negi();
         //Extra info
         currentApproxKL = (logProbOld.sub(output[2])).mean().getFloat(0);
         return lossPerPoint;

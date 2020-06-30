@@ -90,10 +90,10 @@ public class PPO {
      * @param batchSize
      */
     private void applyGradient(INDArray[] gradient, int batchSize) {
-        //Actor
-        actor.applyGradient(gradient[0], batchSize);
         //Critic
-        critic.applyGradient(gradient[1], batchSize);
+        critic.applyGradient(gradient[0], batchSize);
+        //Actor
+        actor.applyGradient(gradient[1], batchSize);
     }
     
     /**
@@ -178,7 +178,7 @@ public class PPO {
     }
     
     public synchronized INDArray[] getNetsParams(){
-        return new INDArray[]{this.actor.getParams(), this.critic.getParams()};
+        return new INDArray[]{this.critic.getParams(), this.actor.getParams()};
     }
 
     public ExperimentResult getResults() {

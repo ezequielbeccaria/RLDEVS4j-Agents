@@ -108,7 +108,8 @@ public class FFDiscreteActor implements DiscreteACActor {
         INDArray[] output = this.output(states, actions);
         INDArray logProb = Transforms.log(output[1]);
         INDArray lossPerPoint = logProb.mulColumnVector(advantages);
-        lossPerPoint.addiColumnVector(output[3].mul(entropyFactor)).negi();
+        INDArray entropyLoss = output[3].mul(entropyFactor);
+        lossPerPoint.addiColumnVector(entropyLoss);
         //Extra info
         return lossPerPoint;
     }

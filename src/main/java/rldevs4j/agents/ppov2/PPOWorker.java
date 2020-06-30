@@ -61,7 +61,7 @@ public class PPOWorker extends Agent {
         super("worker"+id, preprocessing, 0D);
         this.actor = actor;
         this.critic = critic;
-        this.scaler = StandartScaler.getInstance(false, false);
+        this.scaler = StandartScaler.getInstance(true, true);
         this.horizon = horizon;
         this.epochs = epochs;
         this.targetKl = targetKl;
@@ -138,14 +138,16 @@ public class PPOWorker extends Agent {
             }
 
             global.enqueueGradient(
-                    new INDArray[]{gActor.dup(), gCritic.dup()},
+                    new INDArray[]{gCritic, gActor},
                     trace.size());
 
             INDArray[] globalParams = global.getNetsParams();
 
-            actor.setParams(globalParams[0]);
-            critic.setParams(globalParams[1]);
-
+            if(!firstTime) {
+                critic.setParams(globalParams[0]);
+                actor.setParams(globalParams[1]);
+            }
+            firstTime = false;
             trace.clear();
         }
         return new double[]{0};
