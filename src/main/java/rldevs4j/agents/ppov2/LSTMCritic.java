@@ -42,8 +42,9 @@ public class LSTMCritic implements PPOCritic {
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .updater(new Adam(learningRate))
                 .weightInit(WeightInit.XAVIER)
-                .gradientNormalization(GradientNormalization.ClipL2PerParamType)
-                .gradientNormalizationThreshold(0.5)
+                .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
+                .gradientNormalizationThreshold(paramClamp)
+                .l2(l2)
                 .graphBuilder()
                 .addInputs("in")
                 .addLayer("lstm1", new LSTM.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
@@ -96,6 +97,13 @@ public class LSTMCritic implements PPOCritic {
         Gradient g = model.backpropGradient(lossPerPoint);
         model.setScore(lossPerPoint.meanNumber().doubleValue());
         model.rnnClearPreviousState();
+
+        ComputationGraphConfiguration cgConf = model.getConfiguration();
+        int iterationCount = cgConf.getIterationCount();
+        int epochCount = cgConf.getEpochCount();
+        this.model.getUpdater().update(g, iterationCount, epochCount, states.rows(), LayerWorkspaceMgr.noWorkspaces());
+        this.model.update(g);
+
         return g;
     }
 
@@ -124,7 +132,7 @@ public class LSTMCritic implements PPOCritic {
 
     @Override
     public void setParams(INDArray p) {
-        model.setParams(p);
+        model.setParams(p.dup());
     }
 
     @Override

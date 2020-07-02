@@ -84,8 +84,8 @@ public class A3CWorker extends Agent {
             logger.info(currentTuple.toStringMinimal());
             logger.log(Level.INFO, "Action: {0}", Arrays.toString(actionSpace[action]));
         }
-//        return new Continuous(action, "action", EventType.action, actionSpace[action]);
-        return new Categorical<Integer>(action, "action", EventType.action, action);
+        return new Continuous(action, "action", EventType.action, actionSpace[action]);
+//        return new Categorical<Integer>(action, "action", EventType.action, action);
     }
 
     @Override

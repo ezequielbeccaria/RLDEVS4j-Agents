@@ -157,7 +157,9 @@ public class ContinuousActionActor implements PPOActor{
         INDArray clipAdv = ratio.dup();
         AgentUtils.clamp(clipAdv, 1D-epsilonClip, 1D+epsilonClip);  
         clipAdv.muliColumnVector(advantages);
-        INDArray lossPerPoint = Transforms.min(ratio.mulColumnVector(advantages), clipAdv).mul(-1D).add(output[2].mul(this.entropyCoef));        
+        INDArray lossPerPoint = Transforms.min(ratio.mulColumnVector(advantages), clipAdv);
+        lossPerPoint.negi();
+        lossPerPoint.addi(output[2].mul(this.entropyCoef));
         //Extra info
         return lossPerPoint;
     }

@@ -33,7 +33,7 @@ public class PPO {
     private final EnvironmentFactory envFactory;
     private int modelBackupInterval = 1000;
     private String workingPath;
-    private DiscretePPOActor actor;
+    private PPOActor actor;
     private PPOCritic critic;
     private float[][] actionSpace;
     private final ConcurrentLinkedQueue<Triple<INDArray[],Integer, ComputationGraph[]>> queue; //gradients-batchsize
@@ -55,7 +55,7 @@ public class PPO {
     
 
     public PPO(
-            DiscretePPOActor actor,
+            PPOActor actor,
             PPOCritic critic,
             Preprocessing preprocessing,
             EnvironmentFactory envFactory,
@@ -142,7 +142,7 @@ public class PPO {
             Environment env = envFactory.createInstance();
             PPOWorker worker = new PPOWorker(
                     i,
-                    (DiscretePPOActor) actor.clone(),
+                    actor.clone(),
                     critic.clone(),
                     this,
                     discountFactor,

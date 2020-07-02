@@ -59,8 +59,9 @@ public class LSTMDiscreteActor implements DiscretePPOActor {
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .updater(new Adam(learningRate))
                 .weightInit(WeightInit.XAVIER)
-                .gradientNormalization(GradientNormalization.ClipL2PerParamType)
-                .gradientNormalizationThreshold(0.5)
+                .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
+                .gradientNormalizationThreshold(paramClamp)
+                .l2(l2)
                 .graphBuilder()
                 .addInputs("in")
                 .addLayer("lstm1", new LSTM.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
@@ -118,12 +119,15 @@ public class LSTMDiscreteActor implements DiscretePPOActor {
     private INDArray loss(INDArray states , INDArray actions, INDArray advantages, INDArray logProbOld){
         //output[0] -> sample, output[1] -> probs, output[2] -> logProb, output[3] -> entropy
         INDArray[] output = this.output(states, actions);
-        INDArray ratio = Transforms.exp(Transforms.log(output[1]).sub(logProbOld));
+        INDArray logPi = Transforms.log(output[1]);
+        INDArray ratio = Transforms.exp(logPi.sub(logProbOld));
+//        INDArray ratio = Transforms.exp(Transforms.log(output[1]).sub(logProbOld));
         INDArray clipAdv = ratio.dup();
         AgentUtils.clamp(clipAdv, 1D-epsilonClip, 1D+epsilonClip);
         clipAdv.muliColumnVector(advantages);
         INDArray lossPerPoint = Transforms.min(ratio.mulColumnVector(advantages), clipAdv);
-        lossPerPoint.addiColumnVector(output[3].mul(this.entropyFactor)).negi();
+        lossPerPoint.negi();
+        lossPerPoint.addiColumnVector(output[3].mul(this.entropyFactor));
         //Extra info
         currentApproxKL = (logProbOld.sub(output[2])).mean().getFloat(0);
         return lossPerPoint;
@@ -137,6 +141,13 @@ public class LSTMDiscreteActor implements DiscretePPOActor {
         Gradient g = model.backpropGradient(lossPerPoint);
         model.setScore(lossPerPoint.meanNumber().doubleValue());
         model.rnnClearPreviousState();
+
+        ComputationGraphConfiguration cgConf = model.getConfiguration();
+        int iterationCount = cgConf.getIterationCount();
+        int epochCount = cgConf.getEpochCount();
+        this.model.getUpdater().update(g, iterationCount, epochCount, states.rows(), LayerWorkspaceMgr.noWorkspaces());
+        this.model.update(g);
+
         return g;
     }
 
@@ -160,7 +171,7 @@ public class LSTMDiscreteActor implements DiscretePPOActor {
 
     @Override
     public void setParams(INDArray p){
-        model.setParams(p);
+        model.setParams(p.dup());
     }
 
     @Override

@@ -27,7 +27,7 @@ import java.util.logging.Logger;
  * @author Ezequiel Beccaría
  */
 public class PPOWorker extends Agent {
-    private DiscretePPOActor actor;
+    private PPOActor actor;
     private PPOCritic critic;
     private StandartScaler scaler;
     private float[][] actionSpace;
@@ -48,7 +48,7 @@ public class PPOWorker extends Agent {
     
     public PPOWorker(
             int id,
-            DiscretePPOActor actor,
+            PPOActor actor,
             PPOCritic critic,
             PPO global,
             float discountFactor,
@@ -90,17 +90,30 @@ public class PPOWorker extends Agent {
             if(trace.size() == horizon)
                 train();
         }
-        int action = actor.action(state);
-        INDArray onehotAction = Nd4j.zeros(actionSpace.length);
-        onehotAction.putScalar(action, 1D);
+        if(actor instanceof DiscretePPOActor){
+            int action = ((DiscretePPOActor)actor).action(state);
+            INDArray onehotAction = Nd4j.zeros(actionSpace.length);
+            onehotAction.putScalar(action, 1D);
 
-        //store current td tuple
-        currentTuple = new TDTuple(state.dup(), onehotAction, null, 0);
-        if(debug){ // Debuging
-            logger.info(currentTuple.toStringMinimal());
-            logger.log(Level.INFO, "Action: {0}", Arrays.toString(actionSpace[action]));
+            //store current td tuple
+            currentTuple = new TDTuple(state.dup(), onehotAction, null, 0);
+            if(debug){ // Debuging
+                logger.info(currentTuple.toStringMinimal());
+                logger.log(Level.INFO, "Action: {0}", Arrays.toString(actionSpace[action]));
+            }
+            return new Continuous(action, "action", EventType.action, actionSpace[action]);
+        }else{
+            float[] action = ((ContinuosPPOActor)actor).action(state);
+            INDArray contAction = Nd4j.create(action);
+
+            //store current td tuple
+            currentTuple = new TDTuple(state.dup(), contAction, null, 0);
+            if(debug){ // Debuging
+                logger.info(currentTuple.toStringMinimal());
+                logger.log(Level.INFO, "Action: {0}", Arrays.toString(action));
+            }
+            return new Continuous(0, "action", EventType.action, action);
         }
-        return new Continuous(action, "action", EventType.action, actionSpace[action]);
     }
 
     @Override
@@ -117,20 +130,18 @@ public class PPOWorker extends Agent {
             //gae[0] -> returns
             //gae[1] -> advantages
             INDArray[] gae = gae(oldValues, scaler.partialFitTransform(batch.getRewards()), batch.getDone());
-            INDArray logOldPi = Transforms.log(oldPi[1]);
 
             INDArray gActor = null;
             INDArray gCritic = null;
 
             for (int i = 0; i < epochs; i++) {
                 if (gActor == null) {
-                    gActor = actor.gradient(batch.getStates(), batch.getActions(), gae[1], logOldPi).gradient();
+                    gActor = actor.gradient(batch.getStates(), batch.getActions(), gae[1], oldPi[2]).gradient();
                     gCritic = critic.gradient(batch.getStates(), oldValues, gae[0]).gradient();
                 } else {
-                    gActor.addi(actor.gradient(batch.getStates(), batch.getActions(), gae[1], logOldPi).gradient());
+                    gActor.addi(actor.gradient(batch.getStates(), batch.getActions(), gae[1], oldPi[2]).gradient());
                     gCritic.addi(critic.gradient(batch.getStates(), oldValues, gae[0]).gradient());
                 }
-
                 if (actor.getCurrentApproxKL() > 1.5 * targetKl) {
                     System.out.println(String.format("Early stopping at epoch %d due to reaching max kl: %f", i, actor.getCurrentApproxKL()));
                     break;

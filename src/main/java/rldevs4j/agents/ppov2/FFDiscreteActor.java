@@ -125,8 +125,8 @@ public class FFDiscreteActor implements DiscretePPOActor {
         AgentUtils.clamp(clipAdv, 1D-epsilonClip, 1D+epsilonClip);
         clipAdv.muliColumnVector(advantages);
         INDArray lossPerPoint = Transforms.min(ratio.mulColumnVector(advantages), clipAdv);
-        lossPerPoint.addiColumnVector(output[3].mul(this.entropyFactor));
         lossPerPoint.negi();
+        lossPerPoint.addiColumnVector(output[3].mul(this.entropyFactor));
         //Extra info
         currentApproxKL = (logProbOld.sub(output[2])).mean().getFloat(0);
         return lossPerPoint;
