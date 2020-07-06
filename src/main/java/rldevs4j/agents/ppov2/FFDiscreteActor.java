@@ -41,13 +41,13 @@ public class FFDiscreteActor implements DiscretePPOActor {
 
     public FFDiscreteActor(ComputationGraph model, float entropyFactor, float epsilonClip){
         this.model = model;
-//        WeightInit wi = WeightInit.XAVIER;
-//        this.model.setParams(wi.getWeightInitFunction().init(
-//                model.layerInputSize("h1"),
-//                model.layerSize("policy"),
-//                model.params().shape(),
-//                'c',
-//                model.params()));
+        WeightInit wi = WeightInit.XAVIER;
+        this.model.setParams(wi.getWeightInitFunction().init(
+                model.layerInputSize("h1"),
+                model.layerSize("policy"),
+                model.params().shape(),
+                'c',
+                model.params()));
         this.model.init();
 
         this.entropyFactor = entropyFactor;
@@ -151,15 +151,7 @@ public class FFDiscreteActor implements DiscretePPOActor {
     @Override
     public void applyGradient(INDArray gradient, int batchSize) {
         //Get a row vector gradient array, and apply it to the parameters to update the model
-//        model.params().subi(gradientsClipping(gradient.gradient()));
         model.params().subi(gradient);
-    }
-
-    private INDArray gradientsClipping(INDArray output){
-        INDArray clipped = output.dup();
-        BooleanIndexing.replaceWhere(clipped, paramClamp, Conditions.greaterThan(paramClamp));
-        BooleanIndexing.replaceWhere(clipped, -paramClamp, Conditions.lessThan(-paramClamp));
-        return clipped;
     }
 
     @Override

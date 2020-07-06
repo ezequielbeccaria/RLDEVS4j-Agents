@@ -12,7 +12,9 @@ import rldevs4j.base.env.msg.Step;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class TestAgent extends Agent {
     private FFDiscreteActor actor;
@@ -20,6 +22,7 @@ public class TestAgent extends Agent {
     private TDTuple currentTuple;
     private final List<TDTuple> trace;
     private float[][] actionSpace;
+    protected Map<Double, float[]> appliedActions;
 
     public TestAgent(String modelPath, Preprocessing prep, float[][] actionSpace){
         super("TestDiscretePPO", prep, 1D);
@@ -32,6 +35,7 @@ public class TestAgent extends Agent {
         this.actionSpace = actionSpace;
         cumReward = 0;
         this.trace = new ArrayList<>();
+        this.appliedActions = new HashMap<>();
     }
 
     @Override
@@ -49,7 +53,8 @@ public class TestAgent extends Agent {
         int action = actor.actionMax(state);
         //store current td tuple
         currentTuple = new TDTuple(state.dup(), action, null, 0);
-         return new Continuous(100, "action", EventType.action, actionSpace[action]);
+        appliedActions.put(step.getFeature(-1), actionSpace[action]);
+        return new Continuous(100, "action", EventType.action, actionSpace[action]);
     }
 
     @Override
@@ -75,5 +80,9 @@ public class TestAgent extends Agent {
     @Override
     public void loadModel(String path) {
 
+    }
+
+    public Map<Double, float[]> getAppliedActions() {
+        return appliedActions;
     }
 }

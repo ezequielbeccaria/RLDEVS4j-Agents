@@ -35,13 +35,13 @@ public class FFCritic implements PPOCritic {
 
     public FFCritic(ComputationGraph model, float epsilonClip){
         this.model = model;
-//        WeightInit wi = WeightInit.XAVIER;
-//        this.model.setParams(wi.getWeightInitFunction().init(
-//                model.layerInputSize("h1"),
-//                model.layerSize("value"),
-//                model.params().shape(),
-//                'c',
-//                model.params()));
+        WeightInit wi = WeightInit.XAVIER;
+        this.model.setParams(wi.getWeightInitFunction().init(
+                model.layerInputSize("h1"),
+                model.layerSize("value"),
+                model.params().shape(),
+                'c',
+                model.params()));
         this.model.init();
         this.epsilonClip = epsilonClip;
     }
