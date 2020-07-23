@@ -133,7 +133,7 @@ public class ContinuousActorFixedStd implements ContinuosPPOActor {
         return new Normal(mean, std);
     }
 
-    private INDArray loss(INDArray states , INDArray actions, INDArray advantages, INDArray logOldPi){
+    private INDArray loss(INDArray states , INDArray actions, INDArray advantages, INDArray oldPi, INDArray logOldPi){
         //output[0] -> sample, output[1] -> logProb, output[2] -> entropy
         INDArray[] output = this.output(states, actions);
         INDArray ratio = Transforms.exp(output[1].sub(logOldPi));
@@ -149,8 +149,8 @@ public class ContinuousActorFixedStd implements ContinuosPPOActor {
     }
 
     @Override
-    public Gradient gradient(INDArray states , INDArray actions, INDArray advantages, INDArray logProbOld) {
-        INDArray lossPerPoint = loss(states, actions, advantages, logProbOld);
+    public Gradient gradient(INDArray states , INDArray actions, INDArray advantages, INDArray oldPi, INDArray logProbOld) {
+        INDArray lossPerPoint = loss(states, actions, advantages, oldPi, logProbOld);
         model.feedForward(new INDArray[]{states}, true, false);
         Gradient g = model.backpropGradient(lossPerPoint);
         model.setScore(lossPerPoint.meanNumber().doubleValue());

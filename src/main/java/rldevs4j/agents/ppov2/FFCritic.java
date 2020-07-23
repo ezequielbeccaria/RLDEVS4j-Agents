@@ -30,7 +30,7 @@ import java.util.Collection;
 
 public class FFCritic implements PPOCritic {
     private ComputationGraph model;
-    private final double paramClamp = 1D;
+    private final double paramClamp = 0.5D;
     private float epsilonClip;
 
     public FFCritic(ComputationGraph model, float epsilonClip){
@@ -58,7 +58,7 @@ public class FFCritic implements PPOCritic {
                 .addInputs("in")
                 .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
                 .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.TANH).build(), "h1")
-                .addLayer("value", new DenseLayer.Builder().nIn(hSize).nOut(1).activation(Activation.IDENTITY).build(), "h2")
+                .addLayer("value", new OutputLayer.Builder().lossFunction(LossFunctions.LossFunction.MSE).nIn(hSize).nOut(1).activation(Activation.IDENTITY).build(), "h2")
                 .setOutputs("value")
                 .build();
         model = new ComputationGraph(conf);
@@ -86,30 +86,33 @@ public class FFCritic implements PPOCritic {
         return model.output(obs)[0];
     }
 
-    public INDArray loss(INDArray states, INDArray oldValues, INDArray returns){
-        INDArray v = model.output(states)[0];
-        INDArray vClipped = oldValues.add(AgentUtils.clamp(v.dup().subi(oldValues), epsilonClip, epsilonClip));
-        INDArray lossV = Transforms.pow(v.subColumnVector(returns), 2);
-        INDArray lossVClipped = Transforms.pow(vClipped.subColumnVector(returns), 2);
-        //Why max? -> https://github.com/openai/baselines/issues/445#issuecomment-408835567
-        INDArray loss = Transforms.max(lossV, lossVClipped).muli(0.5);
-        return loss;
-    }
+//    public INDArray loss(INDArray states, INDArray oldValues, INDArray returns){
+//        model.fit(new INDArray[]{states}, new INDArray[]{returns});
+////        INDArray v = model.output(states)[0];
+////        INDArray vClipped = oldValues.add(AgentUtils.clamp(v.dup().subi(oldValues), epsilonClip, epsilonClip));
+////        INDArray lossV = Transforms.pow(v.subColumnVector(returns), 2);
+////        INDArray lossVClipped = Transforms.pow(vClipped.subColumnVector(returns), 2);
+//        //Why max? -> https://github.com/openai/baselines/issues/445#issuecomment-408835567
+////        INDArray loss = Transforms.max(lossV, lossVClipped).muli(0.5);
+//        return lossV;
+//    }
 
     @Override
     public Gradient gradient(INDArray states, INDArray oldValues, INDArray returns) {
-        INDArray lossPerPoint = loss(states, oldValues, returns);
-        model.feedForward(new INDArray[]{states}, true, false);
-        Gradient g = model.backpropGradient(lossPerPoint);
-        model.setScore(lossPerPoint.meanNumber().doubleValue());
+//        INDArray lossPerPoint = loss(states, oldValues, returns);
+//        model.feedForward(new INDArray[]{states}, true, false);
+//        Gradient g = model.backpropGradient(lossPerPoint);
+//        model.setScore(lossPerPoint.meanNumber().doubleValue());
 
-        ComputationGraphConfiguration cgConf = model.getConfiguration();
-        int iterationCount = cgConf.getIterationCount();
-        int epochCount = cgConf.getEpochCount();
-        this.model.getUpdater().update(g, iterationCount, epochCount, states.rows(), LayerWorkspaceMgr.noWorkspaces());
-        this.model.update(g);
+         model.fit(new INDArray[]{states}, new INDArray[]{returns.reshape(new int[]{returns.columns(), 1})});
 
-        return g;
+//        ComputationGraphConfiguration cgConf = model.getConfiguration();
+//        int iterationCount = cgConf.getIterationCount();
+//        int epochCount = cgConf.getEpochCount();
+//        this.model.getUpdater().update(g, iterationCount, epochCount, states.rows(), LayerWorkspaceMgr.noWorkspaces());
+//        this.model.update(g);
+
+        return model.gradient();
     }
 
     private INDArray gradientsClipping(INDArray output){
@@ -127,7 +130,7 @@ public class FFCritic implements PPOCritic {
     @Override
     public void applyGradient(INDArray gradient, int batchSize) {
         //Get a row vector gradient array, and apply it to the parameters to update the model
-//        model.params().subi(gradientsClipping(gradient.gradient()));
+//        model.params().subi(gradientsClipping(gradient));
         model.params().subi(gradient);
     }
 
@@ -138,7 +141,6 @@ public class FFCritic implements PPOCritic {
 
     @Override
     public void setParams(INDArray p) {
-//        model.setParams(model.params().mul(0.9).add(p.mul(0.1)));
         model.setParams(p.dup());
     }
 

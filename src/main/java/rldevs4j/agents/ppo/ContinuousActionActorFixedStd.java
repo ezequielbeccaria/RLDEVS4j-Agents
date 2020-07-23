@@ -156,7 +156,7 @@ public class ContinuousActionActorFixedStd implements ContinuosPPOActor {
     }
 
     @Override
-    public Gradient gradient(INDArray states , INDArray actions, INDArray advantages, INDArray logProbOld) {
+    public Gradient gradient(INDArray states , INDArray actions, INDArray advantages, INDArray probOld, INDArray logProbOld) {
         INDArray lossPerPoint = loss(states, actions, advantages, logProbOld);
         model.feedForward(new INDArray[]{states}, true, false);
         Gradient g = model.backpropGradient(lossPerPoint);

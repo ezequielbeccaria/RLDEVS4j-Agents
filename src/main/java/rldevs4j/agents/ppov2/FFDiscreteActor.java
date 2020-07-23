@@ -28,7 +28,7 @@ import java.io.IOException;
 import java.util.Collection;
 
 public class FFDiscreteActor implements DiscretePPOActor {
-    private final double paramClamp = 1D;
+    private final double paramClamp = 0.5D;
     private float entropyFactor;
     private float epsilonClip;
     private ComputationGraph model;
@@ -116,7 +116,7 @@ public class FFDiscreteActor implements DiscretePPOActor {
         return idx;
     }
 
-    private INDArray loss(INDArray states , INDArray actions, INDArray advantages, INDArray logProbOld){
+    private INDArray loss(INDArray states , INDArray actions, INDArray advantages, INDArray probOld, INDArray logProbOld){
         //output[0] -> sample, output[1] -> probs, output[2] -> logProb, output[3] -> entropy
         INDArray[] output = this.output(states, actions);
         INDArray logPi = Transforms.log(output[1]);
@@ -125,16 +125,16 @@ public class FFDiscreteActor implements DiscretePPOActor {
         AgentUtils.clamp(clipAdv, 1D-epsilonClip, 1D+epsilonClip);
         clipAdv.muliColumnVector(advantages);
         INDArray lossPerPoint = Transforms.min(ratio.mulColumnVector(advantages), clipAdv);
-        lossPerPoint.negi();
-        lossPerPoint.addiColumnVector(output[3].mul(this.entropyFactor));
+        lossPerPoint.subiColumnVector(output[3].mul(this.entropyFactor));
+//        lossPerPoint.negi();
         //Extra info
-        currentApproxKL = (logProbOld.sub(output[2])).mean().getFloat(0);
+        currentApproxKL = (logPi.sub(Transforms.log(probOld))).mul(output[1]).sum(1).mean().getFloat(0);
         return lossPerPoint;
     }
 
     @Override
-    public Gradient gradient(INDArray states , INDArray actions, INDArray advantages, INDArray logProbOld) {
-        INDArray lossPerPoint = loss(states, actions, advantages, logProbOld);
+    public Gradient gradient(INDArray states , INDArray actions, INDArray advantages, INDArray probOld, INDArray logProbOld) {
+        INDArray lossPerPoint = loss(states, actions, advantages, probOld, logProbOld);
         model.feedForward(new INDArray[]{states}, true, false);
         Gradient g = model.backpropGradient(lossPerPoint);
         model.setScore(lossPerPoint.meanNumber().doubleValue());
@@ -148,20 +148,26 @@ public class FFDiscreteActor implements DiscretePPOActor {
         return g;
     }
 
-    @Override
-    public void applyGradient(INDArray gradient, int batchSize) {
-        //Get a row vector gradient array, and apply it to the parameters to update the model
-        model.params().subi(gradient);
+    private INDArray gradientsClipping(INDArray output){
+        INDArray clipped = output.dup();
+        BooleanIndexing.replaceWhere(clipped, paramClamp, Conditions.greaterThan(paramClamp));
+        BooleanIndexing.replaceWhere(clipped, -paramClamp, Conditions.lessThan(-paramClamp));
+        return clipped;
     }
 
     @Override
-    public INDArray getParams() {
+    public synchronized void applyGradient(INDArray gradient, int batchSize) {
+        //Get a row vector gradient array, and apply it to the parameters to update the model
+        model.params().addi(gradient);
+    }
+
+    @Override
+    public synchronized INDArray getParams() {
         return model.params();
     }
 
     @Override
     public void setParams(INDArray p){
-//        model.setParams(model.params().mul(0.9).add(p.mul(0.1)));
         model.setParams(p.dup());
     }
 

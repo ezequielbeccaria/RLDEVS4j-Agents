@@ -116,7 +116,7 @@ public class LSTMDiscreteActor implements DiscretePPOActor {
         return idx;
     }
 
-    private INDArray loss(INDArray states , INDArray actions, INDArray advantages, INDArray logProbOld){
+    private INDArray loss(INDArray states , INDArray actions, INDArray advantages, INDArray probOld, INDArray logProbOld){
         //output[0] -> sample, output[1] -> probs, output[2] -> logProb, output[3] -> entropy
         INDArray[] output = this.output(states, actions);
         INDArray logPi = Transforms.log(output[1]);
@@ -134,9 +134,9 @@ public class LSTMDiscreteActor implements DiscretePPOActor {
     }
 
     @Override
-    public Gradient gradient(INDArray states, INDArray actions, INDArray advantages, INDArray logProbOld) {
+    public Gradient gradient(INDArray states, INDArray actions, INDArray advantages, INDArray probOld, INDArray logProbOld) {
         model.rnnClearPreviousState();
-        INDArray lossPerPoint = loss(states, actions, advantages, logProbOld);
+        INDArray lossPerPoint = loss(states, actions, advantages, probOld, logProbOld);
         model.feedForward(new INDArray[]{states.reshape(new int[]{states.rows(), states.columns(), 1})}, true, false);
         Gradient g = model.backpropGradient(lossPerPoint);
         model.setScore(lossPerPoint.meanNumber().doubleValue());

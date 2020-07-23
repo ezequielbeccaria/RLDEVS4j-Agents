@@ -104,7 +104,7 @@ public class PPO {
      */
     public synchronized void saveStatistics(String thread, int episode, double episodeReward, long episodeTime){
         results.addResult(episodeReward, episodeTime);        
-        if(episode%1==0 && this.debug)
+        if(episode%1==0)
             logger.log(Level.INFO, "{0} episode {1} terminated. Reward: {2}. Avg-Reward: {3}", new Object[]{thread, episode, episodeReward, results.getLastAverageReward()});
         if(episode%modelBackupInterval==0 && this.debug) {
             try {
@@ -151,7 +151,8 @@ public class PPO {
                     epochs,
                     targetKl,
                     preprocessing.clone(),
-                    actionSpace);
+                    actionSpace,
+                    debug);
             RLEnvironment container = new RLEnvironment(worker, env);
             PPOThread thread = new PPOThread("worker_thread_"+i, this, episodesPerWorker, episodeMaxSimTime, container);
             this.workersThreads.add(thread);

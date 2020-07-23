@@ -57,7 +57,8 @@ public class PPOWorker extends Agent {
             int epochs,
             float targetKl,
             Preprocessing preprocessing,
-            float[][] actionSpace) {
+            float[][] actionSpace,
+            boolean debug) {
         super("worker"+id, preprocessing, 0D);
         this.actor = actor;
         this.critic = critic;
@@ -73,6 +74,7 @@ public class PPOWorker extends Agent {
         this.logger = Logger.getGlobal();
         this.actionSpace = actionSpace;
         this.firstTime = true;
+        this.debug = debug;
     }
     
     @Override
@@ -97,10 +99,10 @@ public class PPOWorker extends Agent {
 
             //store current td tuple
             currentTuple = new TDTuple(state.dup(), onehotAction, null, 0);
-            if(debug){ // Debuging
-                logger.info(currentTuple.toStringMinimal());
-                logger.log(Level.INFO, "Action: {0}", Arrays.toString(actionSpace[action]));
-            }
+//            if(debug){ // Debuging
+//                logger.info(currentTuple.toStringMinimal());
+//                logger.log(Level.INFO, "Action: {0}", Arrays.toString(actionSpace[action]));
+//            }
             return new Continuous(action, "action", EventType.action, actionSpace[action]);
         }else{
             float[] action = ((ContinuosPPOActor)actor).action(state);
@@ -108,10 +110,10 @@ public class PPOWorker extends Agent {
 
             //store current td tuple
             currentTuple = new TDTuple(state.dup(), contAction, null, 0);
-            if(debug){ // Debuging
-                logger.info(currentTuple.toStringMinimal());
-                logger.log(Level.INFO, "Action: {0}", Arrays.toString(action));
-            }
+//            if(debug){ // Debuging
+//                logger.info(currentTuple.toStringMinimal());
+//                logger.log(Level.INFO, "Action: {0}", Arrays.toString(action));
+//            }
             return new Continuous(0, "action", EventType.action, action);
         }
     }
@@ -136,17 +138,18 @@ public class PPOWorker extends Agent {
 
             for (int i = 0; i < epochs; i++) {
                 if (gActor == null) {
-                    gActor = actor.gradient(batch.getStates(), batch.getActions(), gae[1], oldPi[2]).gradient();
+                    gActor = actor.gradient(batch.getStates(), batch.getActions(), gae[1], oldPi[1], oldPi[2]).gradient();
                     gCritic = critic.gradient(batch.getStates(), oldValues, gae[0]).gradient();
                 } else {
-                    gActor.addi(actor.gradient(batch.getStates(), batch.getActions(), gae[1], oldPi[2]).gradient());
+                    gActor.addi(actor.gradient(batch.getStates(), batch.getActions(), gae[1], oldPi[1], oldPi[2]).gradient());
                     gCritic.addi(critic.gradient(batch.getStates(), oldValues, gae[0]).gradient());
                 }
                 if (actor.getCurrentApproxKL() > 1.5 * targetKl) {
-                    System.out.println(String.format("Early stopping at epoch %d due to reaching max kl: %f", i, actor.getCurrentApproxKL()));
+                    logger.info(String.format("Early stopping at epoch %d due to reaching max kl: %f", i, actor.getCurrentApproxKL()));
                     break;
                 }
             }
+
 
             global.enqueueGradient(
                     new INDArray[]{gCritic, gActor},
@@ -160,6 +163,12 @@ public class PPOWorker extends Agent {
             }
             firstTime = false;
             trace.clear();
+
+//            if(debug){
+//                INDArray input = Nd4j.diag(Nd4j.ones(9));
+//                logger.log(Level.INFO, critic.output(input).toString());
+//                logger.log(Level.INFO, actor.getModel().output(input)[0].toString( ));
+//            }
         }
         return new double[]{0};
     }
@@ -192,8 +201,7 @@ public class PPOWorker extends Agent {
     public void episodeFinished() {
         super.episodeFinished();
         train();
-        //reset worker 
-        this.trace.clear();
+        //reset worker
         this.cumReward = 0;
     }
 
