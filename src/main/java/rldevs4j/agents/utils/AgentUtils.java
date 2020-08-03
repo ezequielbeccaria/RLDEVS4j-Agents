@@ -23,4 +23,11 @@ public class AgentUtils {
         BooleanIndexing.replaceWhere(logSumExp, aMax, Conditions.isNan());
         return logSumExp;
     }
+
+    public static float sum(float[] a){
+        float sum = 0F;
+        for(int i=0;i<a.length;i++)
+            sum += a[i];
+        return sum;
+    }
 }

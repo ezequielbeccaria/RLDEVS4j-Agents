@@ -35,13 +35,6 @@ public class FFCritic implements PPOCritic {
 
     public FFCritic(ComputationGraph model, float epsilonClip){
         this.model = model;
-        WeightInit wi = WeightInit.XAVIER;
-        this.model.setParams(wi.getWeightInitFunction().init(
-                model.layerInputSize("h1"),
-                model.layerSize("value"),
-                model.params().shape(),
-                'c',
-                model.params()));
         this.model.init();
         this.epsilonClip = epsilonClip;
     }
@@ -131,7 +124,7 @@ public class FFCritic implements PPOCritic {
     public void applyGradient(INDArray gradient, int batchSize) {
         //Get a row vector gradient array, and apply it to the parameters to update the model
 //        model.params().subi(gradientsClipping(gradient));
-        model.params().subi(gradient);
+        model.params().subi(gradient.dup());
     }
 
     @Override

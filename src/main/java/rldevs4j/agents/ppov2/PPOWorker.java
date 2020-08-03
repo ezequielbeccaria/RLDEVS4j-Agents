@@ -5,6 +5,8 @@ import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.cpu.nativecpu.NDArray;
 import org.nd4j.linalg.factory.Nd4j;
+import org.nd4j.linalg.indexing.BooleanIndexing;
+import org.nd4j.linalg.indexing.conditions.Conditions;
 import org.nd4j.linalg.ops.transforms.Transforms;
 import rldevs4j.agents.utils.memory.TDTuple;
 import rldevs4j.agents.utils.memory.TDTupleBatch;
@@ -41,7 +43,7 @@ public class PPOWorker extends Agent {
     private float cumReward;
     private final float discountFactor; //discount rate
     private final float lambdaGae;
-    private boolean firstTime;
+    private int iteration=0;
 
     private Logger logger;
     private boolean debug;
@@ -73,13 +75,13 @@ public class PPOWorker extends Agent {
         this.cumReward = 0;
         this.logger = Logger.getGlobal();
         this.actionSpace = actionSpace;
-        this.firstTime = true;
         this.debug = debug;
     }
     
     @Override
     public Event observation(Step step) {
         INDArray state = step.getObservation();
+//        System.out.println(state);
         double reward = step.getReward();
         cumReward+= reward;
         //compute new policy
@@ -129,9 +131,14 @@ public class PPOWorker extends Agent {
             //oldPi[0] -> sample, oldPi[1] -> probs, oldPi[2] -> logProb, oldPi[3] -> entropy
             INDArray[] oldPi = actor.output(batch.getStates(), batch.getActions());
             INDArray oldValues = critic.output(batch.getStates());
+            if(debug && iteration%100==0){
+                System.out.println(oldPi[1]);
+                System.out.println(oldValues);
+            }
             //gae[0] -> returns
             //gae[1] -> advantages
             INDArray[] gae = gae(oldValues, scaler.partialFitTransform(batch.getRewards()), batch.getDone());
+//            INDArray[] gae = gae(oldValues, scaler.partialFitTransform(clip(batch.getRewards(),-5F, 5F)), batch.getDone());
 
             INDArray gActor = null;
             INDArray gCritic = null;
@@ -152,18 +159,16 @@ public class PPOWorker extends Agent {
 
 
             global.enqueueGradient(
-                    new INDArray[]{gCritic, gActor},
+                    new INDArray[]{gCritic.dup(), gActor.dup()},
                     trace.size());
 
             INDArray[] globalParams = global.getNetsParams();
 
-            if(!firstTime) {
-                critic.setParams(globalParams[0]);
-                actor.setParams(globalParams[1]);
-            }
-            firstTime = false;
-            trace.clear();
+            critic.setParams(globalParams[0]);
+            actor.setParams(globalParams[1]);
 
+            trace.clear();
+            iteration++;
 //            if(debug){
 //                INDArray input = Nd4j.diag(Nd4j.ones(9));
 //                logger.log(Level.INFO, critic.output(input).toString());
@@ -223,5 +228,12 @@ public class PPOWorker extends Agent {
     @Override
     public void loadModel(String path) {
 
+    }
+
+    private double[] clip(double[] output, float min, float max){
+        INDArray clipped = Nd4j.create(output);
+        BooleanIndexing.replaceWhere(clipped, max, Conditions.greaterThan(max));
+        BooleanIndexing.replaceWhere(clipped, min, Conditions.lessThan(min));
+        return clipped.toDoubleVector();
     }
 }

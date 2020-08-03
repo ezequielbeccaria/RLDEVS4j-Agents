@@ -167,7 +167,7 @@
     <orderEntry type="library" name="Maven: jakarta.activation:jakarta.activation-api:1.2.1" level="project" />
     <orderEntry type="library" name="Maven: org.webjars.npm:babel__polyfill:7.4.4" level="project" />
     <orderEntry type="library" name="Maven: org.webjars.npm:core-js:3.0.0-beta.9" level="project" />
-    <orderEntry type="library" name="Maven: org.webjars.npm:regenerator-runtime:0.13.5" level="project" />
+    <orderEntry type="library" name="Maven: org.webjars.npm:regenerator-runtime:0.13.7" level="project" />
     <orderEntry type="library" name="Maven: org.webjars.npm:coreui__coreui:2.1.9" level="project" />
     <orderEntry type="library" name="Maven: org.webjars.npm:coreui__icons:0.3.0" level="project" />
     <orderEntry type="library" name="Maven: org.webjars.npm:jquery:3.4.1" level="project" />
@@ -190,7 +190,7 @@
     <orderEntry type="library" name="Maven: org.webjars.bower:lodash:3.10.1-amd" level="project" />
     <orderEntry type="library" name="Maven: org.webjars.npm:dagre:0.8.4" level="project" />
     <orderEntry type="library" name="Maven: org.webjars.npm:graphlib:2.1.8" level="project" />
-    <orderEntry type="library" name="Maven: org.webjars.npm:lodash:4.17.15" level="project" />
+    <orderEntry type="library" name="Maven: org.webjars.npm:lodash:4.17.19" level="project" />
     <orderEntry type="library" name="Maven: org.webjars.npm:cytoscape-cola:2.3.0" level="project" />
     <orderEntry type="library" name="Maven: org.webjars.npm:webcola:3.3.8" level="project" />
     <orderEntry type="library" name="Maven: org.webjars.npm:d3-dispatch:1.0.6" level="project" />

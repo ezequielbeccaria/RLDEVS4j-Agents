@@ -10,14 +10,9 @@ import org.deeplearning4j.nn.gradient.Gradient;
 import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.deeplearning4j.nn.weights.WeightInit;
 import org.deeplearning4j.nn.workspace.LayerWorkspaceMgr;
-import org.deeplearning4j.optimize.api.TrainingListener;
 import org.deeplearning4j.ui.stats.StatsListener;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
-import org.nd4j.linalg.api.rng.Random;
-import org.nd4j.linalg.factory.Nd4j;
-import org.nd4j.linalg.indexing.BooleanIndexing;
-import org.nd4j.linalg.indexing.conditions.Conditions;
 import org.nd4j.linalg.learning.config.Adam;
 import org.nd4j.linalg.ops.transforms.Transforms;
 import rldevs4j.agents.utils.AgentUtils;
@@ -25,10 +20,8 @@ import rldevs4j.agents.utils.distribution.Categorical;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
 
 public class FFDiscreteActor implements DiscretePPOActor {
-    private final double paramClamp = 0.5D;
     private float entropyFactor;
     private float epsilonClip;
     private ComputationGraph model;
@@ -41,13 +34,6 @@ public class FFDiscreteActor implements DiscretePPOActor {
 
     public FFDiscreteActor(ComputationGraph model, float entropyFactor, float epsilonClip){
         this.model = model;
-        WeightInit wi = WeightInit.XAVIER;
-        this.model.setParams(wi.getWeightInitFunction().init(
-                model.layerInputSize("h1"),
-                model.layerSize("policy"),
-                model.params().shape(),
-                'c',
-                model.params()));
         this.model.init();
 
         this.entropyFactor = entropyFactor;
@@ -60,13 +46,15 @@ public class FFDiscreteActor implements DiscretePPOActor {
                 .updater(new Adam(learningRate))
                 .weightInit(WeightInit.XAVIER)
                 .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
-                .gradientNormalizationThreshold(paramClamp)
+                .gradientNormalizationThreshold(0.5D)
                 .l2(l2)
                 .graphBuilder()
                 .addInputs("in")
                 .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
                 .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.TANH).build(), "h1")
+//                .addLayer("h3", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.TANH).build(), "h2")
                 .addLayer("policy",new DenseLayer.Builder().nIn(hSize).nOut(actionDim).activation(Activation.SOFTMAX).build(), "h2")
+//                .addLayer("policy", new OutputLayer.Builder().lossFunction(new PpoFFDiscreteActorLoss(entropyFactor)).nIn(hSize).nOut(actionDim).activation(Activation.SOFTMAX).build(), "h2")
                 .setOutputs("policy")
                 .build();
 
@@ -105,6 +93,8 @@ public class FFDiscreteActor implements DiscretePPOActor {
     @Override
     public int action(INDArray obs) {
         INDArray prob = this.model.output(obs.reshape(new int[]{1, obs.columns()}))[0];
+//        System.out.println(prob);
+//        Logger.getGlobal().info(prob.toString());
         Categorical dist = new Categorical(prob, null);
         return dist.sample().getInt(0);
     }
@@ -112,53 +102,47 @@ public class FFDiscreteActor implements DiscretePPOActor {
     @Override
     public int actionMax(INDArray obs) {
         INDArray prob = this.model.output(obs.reshape(new int[]{1, obs.columns()}))[0];
-        int idx = prob.argMax(1).getInt(0);
-        return idx;
+        return prob.argMax(1).getInt(0);
     }
 
     private INDArray loss(INDArray states , INDArray actions, INDArray advantages, INDArray probOld, INDArray logProbOld){
         //output[0] -> sample, output[1] -> probs, output[2] -> logProb, output[3] -> entropy
         INDArray[] output = this.output(states, actions);
+//        INDArray logPi = output[2];
         INDArray logPi = Transforms.log(output[1]);
-        INDArray ratio = Transforms.exp(logPi.sub(logProbOld));
+        INDArray ratio = Transforms.exp(logPi.sub(logProbOld), true);
+//        INDArray ratio = Transforms.exp(logPi.sub(Transforms.log(probOld)), true);
         INDArray clipAdv = ratio.dup();
         AgentUtils.clamp(clipAdv, 1D-epsilonClip, 1D+epsilonClip);
         clipAdv.muliColumnVector(advantages);
-        INDArray lossPerPoint = Transforms.min(ratio.mulColumnVector(advantages), clipAdv);
-        lossPerPoint.subiColumnVector(output[3].mul(this.entropyFactor));
-//        lossPerPoint.negi();
+        INDArray lossPerPoint = Transforms.min(ratio.mulColumnVector(advantages), clipAdv, true);
+        lossPerPoint.addiColumnVector(output[3].mul(this.entropyFactor));
+        lossPerPoint.negi();
         //Extra info
-        currentApproxKL = (logPi.sub(Transforms.log(probOld))).mul(output[1]).sum(1).mean().getFloat(0);
+        currentApproxKL = (logPi.sub(logProbOld)).mul(output[1]).sum(1).mean().getFloat(0);
         return lossPerPoint;
     }
 
     @Override
     public Gradient gradient(INDArray states , INDArray actions, INDArray advantages, INDArray probOld, INDArray logProbOld) {
         INDArray lossPerPoint = loss(states, actions, advantages, probOld, logProbOld);
+
         model.feedForward(new INDArray[]{states}, true, false);
         Gradient g = model.backpropGradient(lossPerPoint);
-        model.setScore(lossPerPoint.meanNumber().doubleValue());
 
         ComputationGraphConfiguration cgConf = model.getConfiguration();
         int iterationCount = cgConf.getIterationCount();
         int epochCount = cgConf.getEpochCount();
         this.model.getUpdater().update(g, iterationCount, epochCount, states.rows(), LayerWorkspaceMgr.noWorkspaces());
         this.model.update(g);
-
+        this.model.clear();
+        
         return g;
-    }
-
-    private INDArray gradientsClipping(INDArray output){
-        INDArray clipped = output.dup();
-        BooleanIndexing.replaceWhere(clipped, paramClamp, Conditions.greaterThan(paramClamp));
-        BooleanIndexing.replaceWhere(clipped, -paramClamp, Conditions.lessThan(-paramClamp));
-        return clipped;
     }
 
     @Override
     public synchronized void applyGradient(INDArray gradient, int batchSize) {
-        //Get a row vector gradient array, and apply it to the parameters to update the model
-        model.params().addi(gradient);
+        model.params().subi(gradient.dup());
     }
 
     @Override
