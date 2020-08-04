@@ -41,6 +41,7 @@ public class TestAgent extends Agent {
     @Override
     public Event observation(Step step) {
         INDArray state = step.getObservation();
+        System.out.println(state);
         double reward = step.getReward();
         cumReward+= reward;
         //compute new policy
@@ -54,7 +55,7 @@ public class TestAgent extends Agent {
         //store current td tuple
         currentTuple = new TDTuple(state.dup(), action, null, 0);
         appliedActions.put(step.getFeature(-1), actionSpace[action]);
-        return new Continuous(100, "action", EventType.action, actionSpace[action]);
+        return new Continuous(  100, "action", EventType.action, actionSpace[action]);
     }
 
     @Override
