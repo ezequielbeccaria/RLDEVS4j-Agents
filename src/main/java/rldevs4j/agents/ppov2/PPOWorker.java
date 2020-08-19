@@ -169,11 +169,11 @@ public class PPOWorker extends Agent {
 
             trace.clear();
             iteration++;
-//            if(debug){
-//                INDArray input = Nd4j.diag(Nd4j.ones(9));
-//                logger.log(Level.INFO, critic.output(input).toString());
-//                logger.log(Level.INFO, actor.getModel().output(input)[0].toString( ));
-//            }
+            if(debug){
+                INDArray input = Nd4j.diag(Nd4j.ones(9));
+                logger.log(Level.INFO, critic.output(input).toString());
+                logger.log(Level.INFO, actor.getModel().output(input)[0].toString( ));
+            }
         }
         return new double[]{0};
     }

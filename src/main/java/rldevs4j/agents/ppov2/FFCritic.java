@@ -30,7 +30,7 @@ import java.util.Collection;
 
 public class FFCritic implements PPOCritic {
     private ComputationGraph model;
-    private final double paramClamp = 0.5D;
+    private final double paramClamp = 1D;
     private float epsilonClip;
 
     public FFCritic(ComputationGraph model, float epsilonClip){
@@ -92,28 +92,10 @@ public class FFCritic implements PPOCritic {
 
     @Override
     public Gradient gradient(INDArray states, INDArray oldValues, INDArray returns) {
-//        INDArray lossPerPoint = loss(states, oldValues, returns);
-//        model.feedForward(new INDArray[]{states}, true, false);
-//        Gradient g = model.backpropGradient(lossPerPoint);
-//        model.setScore(lossPerPoint.meanNumber().doubleValue());
-
-         model.fit(new INDArray[]{states}, new INDArray[]{returns.reshape(new int[]{returns.columns(), 1})});
-
-//        ComputationGraphConfiguration cgConf = model.getConfiguration();
-//        int iterationCount = cgConf.getIterationCount();
-//        int epochCount = cgConf.getEpochCount();
-//        this.model.getUpdater().update(g, iterationCount, epochCount, states.rows(), LayerWorkspaceMgr.noWorkspaces());
-//        this.model.update(g);
-
+        model.fit(new INDArray[]{states}, new INDArray[]{returns.reshape(new int[]{returns.columns(), 1})});
         return model.gradient();
     }
 
-    private INDArray gradientsClipping(INDArray output){
-        INDArray clipped = output.dup();
-        BooleanIndexing.replaceWhere(clipped, paramClamp, Conditions.greaterThan(paramClamp));
-        BooleanIndexing.replaceWhere(clipped, -paramClamp, Conditions.lessThan(-paramClamp));
-        return clipped;
-    }
 
     /**
      * Apply to global parameters gradients generated and queue by the workers
@@ -122,8 +104,6 @@ public class FFCritic implements PPOCritic {
      */
     @Override
     public void applyGradient(INDArray gradient, int batchSize) {
-        //Get a row vector gradient array, and apply it to the parameters to update the model
-//        model.params().subi(gradientsClipping(gradient));
         model.params().subi(gradient.dup());
     }
 

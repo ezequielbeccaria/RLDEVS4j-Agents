@@ -31,13 +31,6 @@ public class FFCritic implements ACCritic {
 
     public FFCritic(ComputationGraph model){
         this.model = model;
-        WeightInit wi = WeightInit.XAVIER;
-        this.model.setParams(wi.getWeightInitFunction().init(
-                model.layerInputSize("h1"),
-                model.layerSize("value"),
-                model.params().shape(),
-                'c',
-                model.params()));
         this.model.init();
     }
 
@@ -49,12 +42,11 @@ public class FFCritic implements ACCritic {
                 .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
                 .gradientNormalizationThreshold(paramClamp)
                 .l2(l2)
-                .l2Bias(l2)
                 .graphBuilder()
                 .addInputs("in")
                 .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
                 .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.TANH).build(), "h1")
-                .addLayer("value", new DenseLayer.Builder().activation(Activation.IDENTITY).nIn(hSize).nOut(1).build(), "h2")
+                .addLayer("value", new OutputLayer.Builder().lossFunction(LossFunctions.LossFunction.MSE).nIn(hSize).nOut(1).activation(Activation.IDENTITY).build(), "h2")
                 .setOutputs("value")
                 .build();
         model = new ComputationGraph(conf);
@@ -81,26 +73,10 @@ public class FFCritic implements ACCritic {
         return model.output(obs)[0];
     }
 
-    public INDArray loss(INDArray states, INDArray returns){
-        INDArray v = model.output(states)[0];
-        INDArray loss = Transforms.pow(v.subColumnVector(returns), 2);
-        return loss;
-    }
-
     @Override
     public Gradient gradient(INDArray states, INDArray returns) {
-        INDArray lossPerPoint = loss(states, returns);
-        model.feedForward(new INDArray[]{states}, true, false);
-        Gradient g = model.backpropGradient(lossPerPoint);
-        model.setScore(lossPerPoint.meanNumber().doubleValue());
-
-        ComputationGraphConfiguration cgConf = model.getConfiguration();
-        int iterationCount = cgConf.getIterationCount();
-        int epochCount = cgConf.getEpochCount();
-        this.model.getUpdater().update(g, iterationCount, epochCount, states.rows(), LayerWorkspaceMgr.noWorkspaces());
-        this.model.update(g);
-
-        return g;
+        model.fit(new INDArray[]{states}, new INDArray[]{returns.reshape(new int[]{returns.columns(), 1})});
+        return model.gradient();
     }
 
     /**
@@ -111,7 +87,7 @@ public class FFCritic implements ACCritic {
     @Override
     public void applyGradient(Gradient gradient, int batchSize, double score) {
         //Get a row vector gradient array, and apply it to the parameters to update the model
-        model.params().addi(gradient.gradient());
+        model.params().subi(gradient.gradient());
     }
 
     @Override

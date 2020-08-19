@@ -132,7 +132,8 @@ public class A3C {
                     discountFactor,
                     horizon,
                     preprocessing.clone(),
-                    actionSpace);
+                    actionSpace,
+                    debug);
             RLEnvironment container = new RLEnvironment(worker, env);
             A3CThread thread = new A3CThread("worker_thread_"+i, this, episodesPerWorker, episodeMaxSimTime, container);
             this.workersThreads.add(thread);

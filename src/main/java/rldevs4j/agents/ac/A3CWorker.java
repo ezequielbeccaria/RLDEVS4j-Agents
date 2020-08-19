@@ -11,7 +11,6 @@ import rldevs4j.base.agent.preproc.Preprocessing;
 import rldevs4j.base.env.msg.*;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -46,7 +45,8 @@ public class A3CWorker extends Agent {
             double discountFactor,
             int horizon,
             Preprocessing preprocessing,
-            float[][] actionSpace) {
+            float[][] actionSpace,
+            boolean debug) {
         super("worker"+id, preprocessing, 0D);
         this.actor = actor;
         this.critic = critic;
@@ -59,6 +59,7 @@ public class A3CWorker extends Agent {
         this.logger = Logger.getGlobal();
         this.actionSpace = actionSpace;
         this.firstTime = true;
+        this.debug = debug;
     }
     
     @Override
@@ -77,13 +78,15 @@ public class A3CWorker extends Agent {
                 train();
         }
         int action = actor.action(state);
+        INDArray onehotAction = Nd4j.zeros(actionSpace.length);
+        onehotAction.putScalar(action, 1D);
 
         //store current td tuple
-        currentTuple = new TDTuple(state.dup(), action, null, 0);
-        if(debug){ // Debuging
-            logger.info(currentTuple.toStringMinimal());
-            logger.log(Level.INFO, "Action: {0}", Arrays.toString(actionSpace[action]));
-        }
+        currentTuple = new TDTuple(state.dup(), onehotAction, null, 0);
+//        if(debug){ // Debuging
+//            logger.info(currentTuple.toStringMinimal());
+//            logger.log(Level.INFO, "Action: {0}", Arrays.toString(actionSpace[action]));
+//        }
         return new Continuous(action, "action", EventType.action, actionSpace[action]);
 //        return new Categorical<Integer>(action, "action", EventType.action, action);
     }
@@ -100,7 +103,7 @@ public class A3CWorker extends Agent {
             INDArray oldValues = critic.output(batch.getStates());
             //gae[0] -> returns
             //gae[1] -> advantages
-            INDArray[] gae = gae(oldValues, scaler.partialFitTransform(batch.getRewards()), batch.getDone());
+            INDArray[] gae = advantageEStimation(oldValues, scaler.partialFitTransform(batch.getRewards()), batch.getDone());
 
             Gradient gActor = actor.gradient(batch.getStates(), batch.getActions(), gae[1]);
             Gradient gCritic = critic.gradient(batch.getStates(), gae[0]);
@@ -108,35 +111,31 @@ public class A3CWorker extends Agent {
             global.enqueueGradient(new Gradient[]{gCritic, gActor}, trace.size(), new double[]{critic.getScore(), actor.getScore()});
             INDArray[] globalParams = global.getNetsParams();
 
-            if(!firstTime) {
-                critic.setParams(globalParams[0]);
-                actor.setParams(globalParams[1]);
-            }
+            critic.setParams(globalParams[0]);
+            actor.setParams(globalParams[1]);
+
             firstTime = false;
             trace.clear();
+
+            if(debug){
+                INDArray input = Nd4j.diag(Nd4j.ones(9));
+                logger.log(Level.INFO, critic.output(input).toString());
+                logger.log(Level.INFO, actor.getModel().output(input)[0].toString( ));
+            }
         }
         return new double[]{0};
     }
 
     /**
-     * General Advantage Estimation
+     * Advantage Estimation
      */
-    private INDArray[] gae(INDArray values, double[] rewards, double[] mask){
+    private INDArray[] advantageEStimation(INDArray values, double[] rewards, double[] mask){
         INDArray returns = Nd4j.zeros(rewards.length);
         INDArray advantages = Nd4j.zeros(rewards.length);
 
-        double runningReturn = 0D;
-        double previousValue = 0D;
-        double runningAdvantage = 0D;
-
         for(int t=rewards.length-1;t>=0;t--){
-            runningReturn = rewards[t] + discountFactor * runningReturn * mask[t];
-            double runningTdError = rewards[t] + discountFactor * previousValue * mask[t] - values.getDouble(t);
-            runningAdvantage = runningTdError + discountFactor * runningAdvantage * mask[t];
-
-            returns.putScalar(t, runningReturn);
-            previousValue = values.getDouble(t);
-            advantages.putScalar(t, runningAdvantage);
+            returns.putScalar(t, rewards[t]);
+            advantages.putScalar(t, rewards[t] - values.getDouble(t) * mask[t]);
         }
 
         return new INDArray[]{returns, advantages};

@@ -6,6 +6,7 @@ import java.util.Map;
 import org.deeplearning4j.api.storage.StatsStorage;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.ComputationGraphConfiguration;
+import org.deeplearning4j.nn.conf.GradientNormalization;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
 import org.deeplearning4j.nn.conf.layers.DenseLayer;
 import org.deeplearning4j.nn.conf.layers.OutputLayer;
@@ -20,6 +21,7 @@ import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.indexing.BooleanIndexing;
 import org.nd4j.linalg.indexing.conditions.Conditions;
+import org.nd4j.linalg.learning.config.Adam;
 import org.nd4j.linalg.learning.config.RmsProp;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 
@@ -34,9 +36,11 @@ public class PPOCritic {
     public PPOCritic(int obsDim, Double learningRate, Double l2, int hSize, StatsStorage statsStorage){
         ComputationGraphConfiguration conf = new NeuralNetConfiguration.Builder()    
             .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
-            .updater(new RmsProp(learningRate))
-            .weightInit(WeightInit.XAVIER)                
-            .l2(l2!=null?l2:0.001D)
+            .updater(new Adam(learningRate))
+            .weightInit(WeightInit.XAVIER)
+            .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
+            .gradientNormalizationThreshold(paramClamp)
+            .l2(l2)
             .graphBuilder()
             .addInputs("in")
             .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.RELU).build(), "in")                     
@@ -74,38 +78,17 @@ public class PPOCritic {
     }
     
     private Gradient gradient(INDArray states, INDArray returns) {
-        model.setInputs(states);
-        model.setLabels(returns.reshape(new int[]{returns.columns(), 1}));
-        model.computeGradientAndScore();   
+        model.fit(new INDArray[]{states}, new INDArray[]{returns.reshape(new int[]{returns.columns(), 1})});
         return model.gradient();
     }
-    
-    private INDArray gradientsClipping(INDArray output){
-        BooleanIndexing.replaceWhere(output, paramClamp, Conditions.greaterThan(paramClamp));
-        BooleanIndexing.replaceWhere(output, -paramClamp, Conditions.lessThan(-paramClamp));
-        return output;
-    }
-    
+
     /**
      * Apply to global parameters gradients generated and queue by the workers
      * @param gradient
      * @param batchSize 
      */
     private void applyGradient(Gradient gradient, int batchSize) {
-        ComputationGraphConfiguration cgConf = model.getConfiguration();
-        int iterationCount = cgConf.getIterationCount();
-        int epochCount = cgConf.getEpochCount();
-        model.getUpdater().update(gradient, iterationCount, epochCount, batchSize, LayerWorkspaceMgr.noWorkspaces());
-        //Get a row vector gradient array, and apply it to the parameters to update the model
-        INDArray updateVector = gradientsClipping(gradient.gradient());
-        model.params().subi(updateVector);
-        Collection<TrainingListener> iterationListeners = model.getListeners();
-        if (iterationListeners != null && iterationListeners.size() > 0) {
-            iterationListeners.forEach((listener) -> {                
-                listener.iterationDone(model, iterationCount, epochCount);
-            });
-        }
-        cgConf.setIterationCount(iterationCount + 1);
+        model.params().subi(gradient.gradient().dup());
     }
     
 }

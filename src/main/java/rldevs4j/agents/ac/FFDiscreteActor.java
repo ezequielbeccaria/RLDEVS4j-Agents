@@ -33,13 +33,6 @@ public class FFDiscreteActor implements DiscreteACActor {
     public FFDiscreteActor(ComputationGraph model, double entropyFactor){
         this.rnd = Nd4j.getRandom();
         this.model = model;
-        WeightInit wi = WeightInit.XAVIER;
-        this.model.setParams(wi.getWeightInitFunction().init(
-                model.layerInputSize("h1"),
-                model.layerSize("policy"),
-                model.params().shape(),
-                'c',
-                model.params()));
         this.model.init();
 
         this.entropyFactor = entropyFactor;
@@ -107,11 +100,12 @@ public class FFDiscreteActor implements DiscreteACActor {
         //output[0] -> sample, output[1] -> probs, output[2] -> logProb, output[3] -> entropy
         INDArray[] output = this.output(states, actions);
         INDArray logProb = Transforms.log(output[1]);
-        INDArray lossPerPoint = logProb.mulColumnVector(advantages);
+//        INDArray lossPerPoint = logProb.mulColumnVector(advantages);
+        INDArray lossPerPoint = output[2].mulColumnVector(advantages);
         INDArray entropyLoss = output[3].mul(entropyFactor);
         lossPerPoint.addiColumnVector(entropyLoss);
         //Extra info
-        return lossPerPoint;
+        return lossPerPoint.negi().dup();
     }
 
     @Override
@@ -131,7 +125,12 @@ public class FFDiscreteActor implements DiscreteACActor {
 
     @Override
     public void applyGradient(Gradient gradient, int batchSize, double score) {
-        model.params().addi(gradient.gradient());
+        model.params().addi(gradient.gradient().dup());
+    }
+
+    @Override
+    public ComputationGraph getModel() {
+        return model;
     }
 
     @Override
