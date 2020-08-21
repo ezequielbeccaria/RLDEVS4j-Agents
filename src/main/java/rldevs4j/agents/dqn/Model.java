@@ -6,6 +6,7 @@ import org.deeplearning4j.nn.conf.ComputationGraphConfiguration;
 import org.deeplearning4j.nn.conf.GradientNormalization;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
 import org.deeplearning4j.nn.conf.layers.DenseLayer;
+import org.deeplearning4j.nn.conf.layers.OutputLayer;
 import org.deeplearning4j.nn.gradient.Gradient;
 import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.deeplearning4j.nn.weights.WeightInit;
@@ -14,7 +15,10 @@ import org.deeplearning4j.optimize.api.TrainingListener;
 import org.deeplearning4j.ui.stats.StatsListener;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.api.rng.Random;
+import org.nd4j.linalg.factory.Nd4j;
 import org.nd4j.linalg.learning.config.Adam;
+import org.nd4j.linalg.lossfunctions.LossFunctions;
 import org.nd4j.linalg.ops.transforms.Transforms;
 import rldevs4j.agents.utils.distribution.Categorical;
 import rldevs4j.agents.utils.memory.TDTuple;
@@ -59,9 +63,9 @@ public class Model {
             .gradientNormalizationThreshold(clipReward)
             .graphBuilder()
             .addInputs("in")
-            .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
-            .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.TANH).build(), "h1")
-            .addLayer("value", new DenseLayer.Builder().nIn(hSize).nOut(outputDim).activation(Activation.IDENTITY).build(), "h2")
+            .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.RELU).build(), "in")
+            .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.RELU).build(), "h1")
+                .addLayer("value", new OutputLayer.Builder().lossFunction(LossFunctions.LossFunction.MSE).nIn(hSize).nOut(outputDim).activation(Activation.IDENTITY).build(), "h2")
             .setOutputs("value")
             .build();
 
@@ -118,6 +122,7 @@ public class Model {
             // on the "older" target_net; selecting their best reward with max(1)[0].
             // This is merged based on the mask, such that we'll have either the expected
             // state value or 0 in case the state was final.
+            int[] actions = batch.getActions().toIntVector();
             INDArray qsa = model.output(batch.getNextStates())[0];
             int[] max_act = qsa.argMax(1).toIntVector();
             INDArray qsa_prime = target.output(batch.getNextStates())[0];
@@ -125,11 +130,10 @@ public class Model {
             double[] scaledRwd = scaler.partialFitTransform(batch.getRewards());
             for(int i=0;i<batchSize;i++){
                 delta[i] = scaledRwd[i] + batch.getDone()[i] * discountFactor * qsa_prime.getFloat(i, max_act[i]);
-                state_action_values.putScalar(new int[]{i, max_act[i]}, delta[i]);
+                state_action_values.putScalar(new int[]{i, actions[i]}, delta[i]);
             }
 
-            Gradient g = this.gradient(batch.getStates(), state_action_values);
-            this.applyGradient(g, batchSize, iteration);
+            model.fit(new INDArray[]{batch.getStates()}, new INDArray[]{state_action_values});
 
             this.j++;
             if (j % c == 0) {
@@ -138,42 +142,46 @@ public class Model {
         }
     }
 
-    public INDArray loss(INDArray states, INDArray target){
-        INDArray v = model.output(states)[0];
-        INDArray loss = Transforms.pow(v.sub(target), 2);
-        return loss;
-    }
+//    public INDArray loss(INDArray states, INDArray target){
+//        INDArray v = model.output(states)[0];
+//        INDArray loss = Transforms.pow(v.sub(target), 2);
+//        return loss;
+//    }
+//
+//    public Gradient gradient(INDArray input, INDArray labels) {
+//        INDArray lossPerPoint = loss(input, labels);
+//        model.feedForward(new INDArray[]{input}, true, false);
+//        Gradient g = model.backpropGradient(lossPerPoint);
+//        model.setScore(lossPerPoint.meanNumber().doubleValue());
+//
+//        return g;
+//    }
 
-    public Gradient gradient(INDArray input, INDArray labels) {
-        INDArray lossPerPoint = loss(input, labels);
-        model.feedForward(new INDArray[]{input}, true, false);
-        Gradient g = model.backpropGradient(lossPerPoint);
-        model.setScore(lossPerPoint.meanNumber().doubleValue());
+//    /**
+//     * Apply calculated gradients to model parameters
+//     * @param gradient
+//     * @param batchSize
+//     */
+//    private void applyGradient(Gradient gradient, int batchSize, int iteration) {
+//        ComputationGraphConfiguration cgConf = model.getConfiguration();
+//        int iterationCount = cgConf.getIterationCount();
+//        int epochCount = cgConf.getEpochCount();
+//        model.getUpdater().update(gradient, iteration, epochCount, batchSize, LayerWorkspaceMgr.noWorkspaces());
+//        //Get a row vector gradient array, and apply it to the parameters to update the model
+//        model.update(gradient);
+//
+//        //Notify training listeners
+//        Collection<TrainingListener> iterationListeners = model.getListeners();
+//        if (iterationListeners != null && iterationListeners.size() > 0) {
+//            iterationListeners.forEach((listener) -> {
+//                listener.iterationDone(model, iteration, j);
+//            });
+//        }
+//        cgConf.setIterationCount(iterationCount + 1);
+//    }
 
-        return g;
-    }
-
-    /**
-     * Apply calculated gradients to model parameters
-     * @param gradient
-     * @param batchSize
-     */
-    private void applyGradient(Gradient gradient, int batchSize, int iteration) {
-        ComputationGraphConfiguration cgConf = model.getConfiguration();
-        int iterationCount = cgConf.getIterationCount();
-        int epochCount = cgConf.getEpochCount();
-        model.getUpdater().update(gradient, iteration, epochCount, batchSize, LayerWorkspaceMgr.noWorkspaces());
-        //Get a row vector gradient array, and apply it to the parameters to update the model
-        model.update(gradient);
-
-        //Notify training listeners
-        Collection<TrainingListener> iterationListeners = model.getListeners();
-        if (iterationListeners != null && iterationListeners.size() > 0) {
-            iterationListeners.forEach((listener) -> {
-                listener.iterationDone(model, iteration, j);
-            });
-        }
-        cgConf.setIterationCount(iterationCount + 1);
+    public INDArray output(INDArray input){
+        return model.output(input)[0];
     }
 
     public void saveModel(String path) throws IOException {

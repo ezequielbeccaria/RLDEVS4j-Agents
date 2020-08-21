@@ -27,7 +27,7 @@ import java.util.logging.Logger;
  * @author Ezequiel Beccaría
  */
 public class DDQN extends Agent {
-    private TDTuple currentTuple;
+    private TDTuple<Integer> currentTuple;
     private double cumReward;
 
     private Model model;
@@ -45,7 +45,7 @@ public class DDQN extends Agent {
             Preprocessing preprocessing,
             Model model,
             Map<String,Object> params) {
-        super(name, preprocessing, 0.1D);
+        super(name, preprocessing, 0D);
 
         rnd = Nd4j.getRandom();
         memory = new ExperienceReplayBuffer<>((int) params.getOrDefault("MEMORY_SIZE", 10000), rnd);
@@ -73,14 +73,14 @@ public class DDQN extends Agent {
         int action = model.action(state);
 
         //store current td tuple
-        currentTuple = new TDTuple(state.dup(), actionSpace[action], null, 0);
+        currentTuple = new TDTuple(state.dup(), action, null, 0);
         //Train the model
         model.train(memory.sample(batchSize), batchSize, iteration); // Experience Replay
 
-        if(debug){ // Debuging
-            logger.info(currentTuple.toStringMinimal());
-            logger.log(Level.INFO, "Action: {0}", Arrays.toString(actionSpace[action]));
-        }
+//        if(debug){ // Debuging
+//            logger.info(currentTuple.toStringMinimal());
+//            logger.log(Level.INFO, "Action: {0}", Arrays.toString(actionSpace[action]));
+//        }
 
         return new Continuous(action, "action", EventType.action, actionSpace[action]);
     }
@@ -99,6 +99,10 @@ public class DDQN extends Agent {
         cumReward = 0D;
         currentTuple = null;
         iteration++;
+        if(debug){
+            INDArray input = Nd4j.diag(Nd4j.ones(9));
+            logger.log(Level.INFO, model.output(input).toString());
+        }
     }
 
     @Override
