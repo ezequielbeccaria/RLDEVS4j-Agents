@@ -48,7 +48,7 @@ public class Model {
             int outputDim,
             Double learningRate,
             double discountFactor,
-            double clipReward,
+            double clipGradientsThreshold,
             int targetUpdate,
             int hSize,
             boolean rwdMeanScale,
@@ -60,7 +60,7 @@ public class Model {
             .updater(new Adam(learningRate))
             .weightInit(WeightInit.XAVIER)
             .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
-            .gradientNormalizationThreshold(clipReward)
+            .gradientNormalizationThreshold(clipGradientsThreshold)
             .graphBuilder()
             .addInputs("in")
             .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.RELU).build(), "in")
@@ -89,7 +89,7 @@ public class Model {
             (int) params.get("OUTPUT_DIM"),
             (double) params.get("LEARNING_RATE"),
             (double) params.get("DISCOUNT_RATE"),
-            (double) params.get("CLIP_REWARD"),
+            (double) params.get("CLIP_GRADIENT_THRESHOLD"),
             (int) params.get("TARGET_UPDATE"),
             (int) params.get("HIDDEN_SIZE"),
             (boolean) params.get("RWD_MEAN_SCALE"),
