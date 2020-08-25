@@ -229,11 +229,4 @@ public class PPOWorker extends Agent {
     public void loadModel(String path) {
 
     }
-
-    private double[] clip(double[] output, float min, float max){
-        INDArray clipped = Nd4j.create(output);
-        BooleanIndexing.replaceWhere(clipped, max, Conditions.greaterThan(max));
-        BooleanIndexing.replaceWhere(clipped, min, Conditions.lessThan(min));
-        return clipped.toDoubleVector();
-    }
 }
