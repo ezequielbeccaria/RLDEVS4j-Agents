@@ -95,8 +95,13 @@ public class A3C {
      */
     public synchronized void saveStatistics(String thread, int episode, double episodeReward, long episodeTime){
         results.addResult(episodeReward, episodeTime);        
-        if(this.debug || episode%10==0)
-            logger.log(Level.INFO, "{0} episode {1} terminated. Reward: {2}. Avg-Reward: {3}", new Object[]{thread, episode, episodeReward, results.getLastAverageReward()});   
+        if(this.debug || episode%10==0) {
+            logger.log(Level.INFO, "{0} episode {1} terminated. Reward: {2}. Avg-Reward: {3}", new Object[]{thread, episode, episodeReward, results.getLastAverageReward()});
+            double estimatedTimeMinutes = results.getAverageTime().get(results.size()-1)*(episodesPerWorker-episode)/60000;
+            int hours = (int) (estimatedTimeMinutes / 60);
+            int minutes = (int) (estimatedTimeMinutes % 60);
+            logger.log(Level.INFO, "Estimated time to complete experiment: {0}:{1} Hs", new Object[]{hours, minutes});
+        }
     }
     
     /**
@@ -159,6 +164,7 @@ public class A3C {
             });
         es.shutdown();
         es.awaitTermination(10, TimeUnit.DAYS);
+
     }
     
     public synchronized INDArray[] getNetsParams(){
