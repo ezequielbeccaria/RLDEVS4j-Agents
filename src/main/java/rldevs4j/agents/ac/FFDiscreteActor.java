@@ -26,7 +26,7 @@ import java.io.IOException;
 
 public class FFDiscreteActor implements DiscreteACActor {
     private final double entropyFactor;
-    private final double paramClip = 1D;
+    private final double paramClip = 0.5D;
     private ComputationGraph model;
     private Random rnd;
 
@@ -43,7 +43,7 @@ public class FFDiscreteActor implements DiscreteACActor {
         ComputationGraphConfiguration conf = new NeuralNetConfiguration.Builder()
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .updater(new Adam(learningRate))
-                .weightInit(WeightInit.XAVIER)
+                .weightInit(WeightInit.UNIFORM)
                 .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
                 .gradientNormalizationThreshold(paramClip)
                 .l2(l2)

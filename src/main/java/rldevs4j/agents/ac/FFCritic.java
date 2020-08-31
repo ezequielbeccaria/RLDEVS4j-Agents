@@ -27,7 +27,7 @@ import java.io.IOException;
 
 public class FFCritic implements ACCritic {
     private ComputationGraph model;
-    private final double paramClamp = 1D;
+    private final double paramClamp = 0.5D;
 
     public FFCritic(ComputationGraph model){
         this.model = model;
@@ -38,7 +38,7 @@ public class FFCritic implements ACCritic {
         ComputationGraphConfiguration conf = new NeuralNetConfiguration.Builder()
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .updater(new Adam(learningRate))
-                .weightInit(WeightInit.XAVIER)
+                .weightInit(WeightInit.UNIFORM)
                 .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
                 .gradientNormalizationThreshold(paramClamp)
                 .l2(l2)

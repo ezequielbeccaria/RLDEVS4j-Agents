@@ -95,7 +95,7 @@ public class A3C {
      */
     public synchronized void saveStatistics(String thread, int episode, double episodeReward, long episodeTime){
         results.addResult(episodeReward, episodeTime);        
-        if(this.debug || episode%10==0) {
+        if(this.debug || episode%1==0) {
             logger.log(Level.INFO, "{0} episode {1} terminated. Reward: {2}. Avg-Reward: {3}", new Object[]{thread, episode, episodeReward, results.getLastAverageReward()});
             double estimatedTimeMinutes = results.getAverageTime().get(results.size()-1)*(episodesPerWorker-episode)/60000;
             int hours = (int) (estimatedTimeMinutes / 60);

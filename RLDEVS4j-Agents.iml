@@ -190,7 +190,7 @@
     <orderEntry type="library" name="Maven: org.webjars.bower:lodash:3.10.1-amd" level="project" />
     <orderEntry type="library" name="Maven: org.webjars.npm:dagre:0.8.4" level="project" />
     <orderEntry type="library" name="Maven: org.webjars.npm:graphlib:2.1.8" level="project" />
-    <orderEntry type="library" name="Maven: org.webjars.npm:lodash:4.17.19" level="project" />
+    <orderEntry type="library" name="Maven: org.webjars.npm:lodash:4.17.20" level="project" />
     <orderEntry type="library" name="Maven: org.webjars.npm:cytoscape-cola:2.3.0" level="project" />
     <orderEntry type="library" name="Maven: org.webjars.npm:webcola:3.3.8" level="project" />
     <orderEntry type="library" name="Maven: org.webjars.npm:d3-dispatch:1.0.6" level="project" />
