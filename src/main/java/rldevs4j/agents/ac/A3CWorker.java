@@ -50,7 +50,7 @@ public class A3CWorker extends Agent {
         super("worker"+id, preprocessing, 0D);
         this.actor = actor;
         this.critic = critic;
-        this.scaler = StandartScaler.getInstance(true, true);
+        this.scaler = StandartScaler.getInstance(false, true);
         this.horizon = horizon;
         this.discountFactor = discountFactor;
         this.global = global;
@@ -132,10 +132,12 @@ public class A3CWorker extends Agent {
     private INDArray[] advantageEStimation(INDArray values, double[] rewards, double[] mask){
         INDArray returns = Nd4j.zeros(rewards.length);
         INDArray advantages = Nd4j.zeros(rewards.length);
+        double cum_reward = 0F;
 
         for(int t=rewards.length-1;t>=0;t--){
-            returns.putScalar(t, rewards[t]);
-            advantages.putScalar(t, rewards[t] - values.getDouble(t) * mask[t]);
+            cum_reward += rewards[t];
+            returns.putScalar(t, rewards[t] - discountFactor * values.getDouble(t) * mask[t]);
+            advantages.putScalar(t, cum_reward - discountFactor * values.getDouble(t) * mask[t]);
         }
 
         return new INDArray[]{returns, advantages};
