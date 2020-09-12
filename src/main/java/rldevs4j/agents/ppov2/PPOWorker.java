@@ -86,7 +86,7 @@ public class PPOWorker extends Agent {
         cumReward+= reward;
         //compute new policy
         if(currentTuple!=null){
-            currentTuple.addReward(reward);
+            currentTuple.addReward(reward-Nd4j.sum((INDArray)currentTuple.getAction()).getDouble(0));
             currentTuple.setNextState(state.dup()); //set next state
             currentTuple.setDone(step.isDone());
             trace.add(currentTuple);

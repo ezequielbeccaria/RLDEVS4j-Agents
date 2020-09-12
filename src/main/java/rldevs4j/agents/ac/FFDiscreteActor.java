@@ -38,7 +38,7 @@ public class FFDiscreteActor implements DiscreteACActor {
         this.entropyFactor = entropyFactor;
     }
 
-    public FFDiscreteActor(int obsDim, int actionDim, Double learningRate, Double l2, double entropyFactor, int hSize, StatsStorage statsStorage) {
+    public FFDiscreteActor(int obsDim, int actionDim, Double learningRate, Double l2, double entropyFactor, int hSize, Activation act, StatsStorage statsStorage) {
         this.rnd = Nd4j.getRandom();
         ComputationGraphConfiguration conf = new NeuralNetConfiguration.Builder()
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
@@ -50,8 +50,8 @@ public class FFDiscreteActor implements DiscreteACActor {
                 .l2Bias(l2)
                 .graphBuilder()
                 .addInputs("in")
-                .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
-                .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.TANH).build(), "h1")
+                .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(act).build(), "in")
+                .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(act).build(), "h1")
                 .addLayer("policy",new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.SOFTMAX).nIn(hSize).nOut(actionDim).build(), "h2")
                 .setOutputs("policy")
                 .build();

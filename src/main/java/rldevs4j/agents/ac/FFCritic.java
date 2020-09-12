@@ -34,7 +34,7 @@ public class FFCritic implements ACCritic {
         this.model.init();
     }
 
-    public FFCritic(int obsDim, Double learningRate, Double l2, int hSize, StatsStorage statsStorage){
+    public FFCritic(int obsDim, Double learningRate, Double l2, int hSize, Activation act, StatsStorage statsStorage){
         ComputationGraphConfiguration conf = new NeuralNetConfiguration.Builder()
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .updater(new Adam(learningRate))
@@ -44,8 +44,8 @@ public class FFCritic implements ACCritic {
                 .l2(l2)
                 .graphBuilder()
                 .addInputs("in")
-                .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
-                .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.TANH).build(), "h1")
+                .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(act).build(), "in")
+                .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(act).build(), "h1")
                 .addLayer("value", new OutputLayer.Builder().lossFunction(LossFunctions.LossFunction.MSE).nIn(hSize).nOut(1).activation(Activation.IDENTITY).build(), "h2")
                 .setOutputs("value")
                 .build();

@@ -20,6 +20,7 @@ import org.nd4j.linalg.indexing.BooleanIndexing;
 import org.nd4j.linalg.indexing.conditions.Conditions;
 import org.nd4j.linalg.learning.config.Adam;
 import org.nd4j.linalg.learning.config.RmsProp;
+import org.nd4j.linalg.learning.config.Sgd;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 import org.nd4j.linalg.ops.transforms.Transforms;
 import rldevs4j.agents.utils.AgentUtils;
@@ -30,7 +31,7 @@ import java.util.Collection;
 
 public class FFCritic implements PPOCritic {
     private ComputationGraph model;
-    private final double paramClamp = 1D;
+    private final double paramClamp = 0.5D;
     private float epsilonClip;
 
     public FFCritic(ComputationGraph model, float epsilonClip){
@@ -39,18 +40,18 @@ public class FFCritic implements PPOCritic {
         this.epsilonClip = epsilonClip;
     }
 
-    public FFCritic(int obsDim, Double learningRate, Double l2, float epsilonClip, int hSize, StatsStorage statsStorage){
+    public FFCritic(int obsDim, Double learningRate, Double l2, float epsilonClip, int hSize, Activation hact, StatsStorage statsStorage){
         ComputationGraphConfiguration conf = new NeuralNetConfiguration.Builder()
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
-                .updater(new Adam(learningRate))
-                .weightInit(WeightInit.XAVIER)
+                .updater(new RmsProp(learningRate))
+                .weightInit(WeightInit.UNIFORM)
                 .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
                 .gradientNormalizationThreshold(paramClamp)
                 .l2(l2)
                 .graphBuilder()
                 .addInputs("in")
-                .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
-                .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.TANH).build(), "h1")
+                .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(hact).build(), "in")
+                .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(hact).build(), "h1")
                 .addLayer("value", new OutputLayer.Builder().lossFunction(LossFunctions.LossFunction.MSE).nIn(hSize).nOut(1).activation(Activation.IDENTITY).build(), "h2")
                 .setOutputs("value")
                 .build();

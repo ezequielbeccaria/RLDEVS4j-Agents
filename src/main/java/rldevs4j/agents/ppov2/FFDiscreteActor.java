@@ -13,7 +13,9 @@ import org.deeplearning4j.nn.workspace.LayerWorkspaceMgr;
 import org.deeplearning4j.ui.stats.StatsListener;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
-import org.nd4j.linalg.learning.config.Adam;
+
+import org.nd4j.linalg.learning.config.RmsProp;
+import org.nd4j.linalg.learning.config.Sgd;
 import org.nd4j.linalg.ops.transforms.Transforms;
 import rldevs4j.agents.utils.AgentUtils;
 import rldevs4j.agents.utils.distribution.Categorical;
@@ -40,18 +42,18 @@ public class FFDiscreteActor implements DiscretePPOActor {
         this.epsilonClip = epsilonClip;
     }
 
-    public FFDiscreteActor(int obsDim, int actionDim, Double learningRate, Double l2, float entropyFactor, float epsilonClip, int hSize, StatsStorage statsStorage) {
+    public FFDiscreteActor(int obsDim, int actionDim, Double learningRate, Double l2, float entropyFactor, float epsilonClip, int hSize, Activation hact, StatsStorage statsStorage) {
         ComputationGraphConfiguration conf = new NeuralNetConfiguration.Builder()
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
-                .updater(new Adam(learningRate))
-                .weightInit(WeightInit.XAVIER)
+                .updater(new RmsProp(learningRate))
+                .weightInit(WeightInit.UNIFORM)
                 .gradientNormalization(GradientNormalization.ClipElementWiseAbsoluteValue)
                 .gradientNormalizationThreshold(0.5D)
                 .l2(l2)
                 .graphBuilder()
                 .addInputs("in")
-                .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(Activation.TANH).build(), "in")
-                .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.TANH).build(), "h1")
+                .addLayer("h1", new DenseLayer.Builder().nIn(obsDim).nOut(hSize).activation(hact).build(), "in")
+                .addLayer("h2", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(hact).build(), "h1")
 //                .addLayer("h3", new DenseLayer.Builder().nIn(hSize).nOut(hSize).activation(Activation.TANH).build(), "h2")
                 .addLayer("policy",new DenseLayer.Builder().nIn(hSize).nOut(actionDim).activation(Activation.SOFTMAX).build(), "h2")
 //                .addLayer("policy", new OutputLayer.Builder().lossFunction(new PpoFFDiscreteActorLoss(entropyFactor)).nIn(hSize).nOut(actionDim).activation(Activation.SOFTMAX).build(), "h2")
