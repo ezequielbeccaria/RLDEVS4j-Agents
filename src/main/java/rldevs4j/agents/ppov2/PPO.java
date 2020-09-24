@@ -199,5 +199,9 @@ public class PPO {
     public void loadModel(String path) throws IOException {
         this.actor.loadModel(path);
         this.critic.loadModel(path);
-    }  
+    }
+
+    public PPOActor getActor(){
+        return this.actor;
+    }
 }

@@ -107,6 +107,11 @@ public class Model {
         return dist.sample().getInt(0);
     }
 
+    public int actionMax(INDArray obs){
+        INDArray qsa = model.output(obs.reshape(new int[]{1, obs.columns()}))[0];
+        return qsa.argMax(1).getInt(0);
+    }
+
     public void train(List<TDTuple> replayTuples, int batchSize, int iteration){
         if(replayTuples.size()==batchSize) {
 

@@ -6,6 +6,7 @@ import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.deeplearning4j.util.ModelSerializer;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.primitives.Triple;
+import rldevs4j.agents.ppov2.PPOActor;
 import rldevs4j.base.agent.preproc.Preprocessing;
 import rldevs4j.base.env.Environment;
 import rldevs4j.base.env.RLEnvironment;
@@ -183,5 +184,9 @@ public class A3C {
     public void loadModel(String path) throws IOException {
         this.actor.loadModel(path);
         this.critic.loadModel(path);
-    }  
+    }
+
+    public ACActor getActor(){
+        return this.actor;
+    }
 }

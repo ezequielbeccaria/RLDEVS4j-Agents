@@ -10,7 +10,7 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="Maven: model:DEVS-Suite-facade:1.0" level="project" />
+    <orderEntry type="module" module-name="DEVS-Suite-facade" />
     <orderEntry type="library" name="Maven: org.apache.commons:commons-math3:3.6.1" level="project" />
     <orderEntry type="library" name="Maven: org.apache.commons:commons-lang3:3.5" level="project" />
     <orderEntry type="library" name="Maven: org.nd4j:nd4j-native:1.0.0-beta6" level="project" />
@@ -193,10 +193,10 @@
     <orderEntry type="library" name="Maven: org.webjars.npm:lodash:4.17.20" level="project" />
     <orderEntry type="library" name="Maven: org.webjars.npm:cytoscape-cola:2.3.0" level="project" />
     <orderEntry type="library" name="Maven: org.webjars.npm:webcola:3.3.8" level="project" />
-    <orderEntry type="library" name="Maven: org.webjars.npm:d3-dispatch:1.0.6" level="project" />
-    <orderEntry type="library" name="Maven: org.webjars.npm:d3-drag:1.2.5" level="project" />
-    <orderEntry type="library" name="Maven: org.webjars.npm:d3-selection:2.0.0-rc.2" level="project" />
-    <orderEntry type="library" name="Maven: org.webjars.npm:d3-timer:1.0.10" level="project" />
+    <orderEntry type="library" name="Maven: org.webjars.npm:d3-dispatch:2.0.0-rc.1" level="project" />
+    <orderEntry type="library" name="Maven: org.webjars.npm:d3-drag:2.0.0-rc.1" level="project" />
+    <orderEntry type="library" name="Maven: org.webjars.npm:d3-selection:2.0.0" level="project" />
+    <orderEntry type="library" name="Maven: org.webjars.npm:d3-timer:2.0.0-rc.1" level="project" />
     <orderEntry type="library" name="Maven: org.webjars.npm:cytoscape-cose-bilkent:4.0.0" level="project" />
     <orderEntry type="library" name="Maven: org.webjars.npm:cytoscape-euler:1.2.1" level="project" />
     <orderEntry type="library" name="Maven: org.webjars.npm:cytoscape-klay:3.1.2" level="project" />

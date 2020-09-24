@@ -96,6 +96,12 @@ public class FFDiscreteActor implements DiscreteACActor {
         return idx;
     }
 
+    @Override
+    public int actionMax(INDArray obs) {
+        INDArray prob = this.model.output(obs.reshape(new int[]{1, obs.columns()}))[0];
+        return prob.argMax(1).getInt(0);
+    }
+
     private INDArray loss(INDArray states , INDArray actions, INDArray advantages){
         //output[0] -> sample, output[1] -> probs, output[2] -> logProb, output[3] -> entropy
         INDArray[] output = this.output(states, actions);
