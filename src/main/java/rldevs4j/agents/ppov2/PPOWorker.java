@@ -212,7 +212,7 @@ public class PPOWorker extends Agent {
 
     @Override
     public void trainingFinished() {
-        Nd4j.getWorkspaceManager().destroyAllWorkspacesForCurrentThread();
+
     }
 
     @Override

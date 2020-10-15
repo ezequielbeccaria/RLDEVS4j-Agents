@@ -17,6 +17,12 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>RLDEVS4j-Base</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!--CUDA-->
         <!--        <dependency>-->
         <!--            <groupId>org.nd4j</groupId>-->
@@ -111,10 +117,12 @@
             <version>5.3.1</version>
             <scope>test</scope>
         </dependency>
+        <!-- JSON Parsing -->
+        <!-- https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-core -->
         <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>RLDEVS4j-Base</artifactId>
-            <version>${project.version}</version>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.11.3</version>
         </dependency>
     </dependencies>
     <properties>
@@ -123,4 +131,26 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <deeplearning4j.version>1.0.0-beta6</deeplearning4j.version>
     </properties>
+    <build>
+        <finalName>RLDEVS4j-SingleTrackRailway</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <configuration>
+                    <outputDirectory>
+                        ${project.build.directory}
+                    </outputDirectory>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>
