@@ -38,7 +38,7 @@ public class ACWorkerTest extends Agent {
     
     @Override
     public Event observation(Step step) {
-        INDArray state = step.getObservation();
+        INDArray state = step.getObservationINDArray();
 //        System.out.println(state);
         double reward = step.getReward();
         cumReward+= reward;

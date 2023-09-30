@@ -72,7 +72,7 @@ public class ProximalPolicyOptimization extends Agent{
 
     @Override
     public Event observation(Step step) {
-        INDArray state = step.getObservation();
+        INDArray state = step.getObservationINDArray();
         double reward = step.getReward();
         cumReward+= reward;
         //compute new policy               

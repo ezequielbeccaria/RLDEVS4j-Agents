@@ -51,7 +51,7 @@ public class ContinuousActionActorTest extends Agent {
     @Override
     public Event observation(Step step) {
         cumReward += step.getReward();
-        float[] action = action(step.getObservation());
+        float[] action = action(step.getObservationINDArray());
         appliedActions.put(step.getFeature(-1), action);
         return new Continuous(100, "action", EventType.action, action);
     }

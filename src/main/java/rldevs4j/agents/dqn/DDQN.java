@@ -59,7 +59,7 @@ public class DDQN extends Agent {
     
     @Override
     public Event observation(Step step) {
-        INDArray state = step.getObservation();
+        INDArray state = step.getObservationINDArray();
         double reward = step.getReward();
         //add step reward
         this.cumReward += reward;
