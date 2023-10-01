@@ -92,4 +92,8 @@ public class DDQNTest extends Agent {
     public void loadModel(String path) throws IOException {
         this.model.loadModel(path);
     }
+    
+    public Model getModel(){
+        return model;
+    }
 }

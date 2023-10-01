@@ -15,7 +15,6 @@ import rldevs4j.base.env.msg.EventType;
 import rldevs4j.base.env.msg.Step;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -117,5 +116,9 @@ public class DDQN extends Agent {
     @Override
     public void loadModel(String path) throws IOException {
         this.model.loadModel(path);
+    }
+    
+    public Model getModel(){
+        return model;
     }
 }

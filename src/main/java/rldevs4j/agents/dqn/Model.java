@@ -7,19 +7,13 @@ import org.deeplearning4j.nn.conf.GradientNormalization;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
 import org.deeplearning4j.nn.conf.layers.DenseLayer;
 import org.deeplearning4j.nn.conf.layers.OutputLayer;
-import org.deeplearning4j.nn.gradient.Gradient;
 import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.deeplearning4j.nn.weights.WeightInit;
-import org.deeplearning4j.nn.workspace.LayerWorkspaceMgr;
-import org.deeplearning4j.optimize.api.TrainingListener;
 import org.deeplearning4j.ui.stats.StatsListener;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
-import org.nd4j.linalg.api.rng.Random;
-import org.nd4j.linalg.factory.Nd4j;
 import org.nd4j.linalg.learning.config.Adam;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
-import org.nd4j.linalg.ops.transforms.Transforms;
 import rldevs4j.agents.utils.distribution.Categorical;
 import rldevs4j.agents.utils.memory.TDTuple;
 import rldevs4j.agents.utils.memory.TDTupleBatch;
@@ -27,7 +21,6 @@ import rldevs4j.agents.utils.scaler.StandartScaler;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -74,8 +67,6 @@ public class Model {
         if(statsStorage!=null) {
             this.model.setListeners(new StatsListener(statsStorage));
         }
-//        this.model.setListeners(new ScoreIterationListener(10));
-//        this.model.setListeners(new PerformanceListener(1));
 
         this.target = model.clone();
         this.scaler = StandartScaler.getInstance(rwdMeanScale, rwdStdScale);
